@@ -1,0 +1,8 @@
+# Ejecutables con extensiones comunes
+*.out
+*.exe
+vectores
+# Archivos objeto generados por gcc
+*.o
+Si todos tus ejecutables están dentro de una carpeta, por ejemplo bin/:
+bin/
