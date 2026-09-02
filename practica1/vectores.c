@@ -4,9 +4,10 @@
 #include <stdlib.h>
 
 int main(){
-  int A[10];
-  int B[10];
-  int C[10];
+  int n = 10;
+  int A[n];
+  int B[n];
+  int C[n];
 
   FILE *Afile, *Bfile, *Cfile;
   Afile = fopen("A.txt", "r");
@@ -37,40 +38,23 @@ int main(){
     exit(1);
   }
 
-  pid_t pid_par = fork();
- 
-  if(pid_par == 0 ){
-    for(int j = 0; j < 10; j= j + 2){
-      int suma = A[j] + B[j];
-      C[j] = suma;
-      fprintf(Cfile, "%d,\n", C[j]);
+  for(int j = 0; j < n; j++){
+    pid_t pid = fork();
+    if(pid == 0){
+      C[j] = A[j] + B[j];
+      fprintf(Cfile, "%d\n", C[j]);
       fflush(Cfile);
+      exit(0);
     }
-    exit(0);
+
   }
-
-  pid_t pid_impar = fork();
-  if(pid_impar == 0){
-    for(int j = 1; j < 10; j= j + 2){
-      int suma = A[j] + B[j];
-      C[j] = suma;
-      fprintf(Cfile, "%d,\n", C[j]);
-      fflush(Cfile);
-    }
-    exit(0);
-  }
-
-
+  
   rewind(Cfile);
-  var = 0;
-  while (fscanf(Cfile, "%d", &var) == 1){
+  while(fscanf(Cfile, "%d", &var) == 1){
     printf("%d,", var);
   }
   printf("\n");
-  for(int j = 0; j < 10; j++){
-    printf("%d,", C[j]);
-  }
-
+    
   fclose(Cfile);
   return 0;
 }
