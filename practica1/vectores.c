@@ -1,3 +1,8 @@
+//ALFREDO RAMIREZ CANDIA
+//JULIO CESAR PEREZ FLORES
+//LUIS ANTONIO ISLAS GOMEZ
+//NAVARRO SOTO MARIO ALBERTO
+
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -49,6 +54,7 @@ int main(){
     }
 
   }
+
   
   printf("Vector C:\n");
   rewind(Cfile);
