@@ -42,6 +42,7 @@ int main(){
     pid_t pid = fork();
     if(pid == 0){
       C[j] = A[j] + B[j];
+      printf("Proceso hijo %d: %d + %d = %d\n", getpid(), A[j], B[j], C[j]);
       fprintf(Cfile, "%d\n", C[j]);
       fflush(Cfile);
       exit(0);
@@ -49,6 +50,7 @@ int main(){
 
   }
   
+  printf("Vector C:\n");
   rewind(Cfile);
   while(fscanf(Cfile, "%d", &var) == 1){
     printf("%d,", var);
