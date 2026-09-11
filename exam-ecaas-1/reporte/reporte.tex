@@ -86,12 +86,17 @@
 
 %% ------------------------------------------------------------------
 \section{Introducci\'on y objetivo}
-El problema productor--consumidor consiste en dos procesos que comparten un
-buffer: el productor deposita datos y el consumidor los retira. El objetivo de
-esta pr\'actica es implementarlo \'unicamente con \texttt{fork()} y archivos de
-texto, sin emplear tuber\'ias, se\~nales, \texttt{wait}, \texttt{exec},
-sem\'aforos, mutex, monitores, memoria compartida ni colas de mensajes. La
-sincronizaci\'on se resuelve con espera ocupada (ciclos vac\'ios) y retardos.
+El problema productor--consumidor consiste en dos procesos que se comunican
+datos: el productor los genera y el consumidor los retira. A diferencia de la
+versi\'on original, ahora \emph{cada proceso tiene su propio buffer en memoria}
+(un arreglo privado) y la comunicaci\'on entre ambos se realiza mediante un
+archivo de texto que se emplea como una memoria compartida l\'ogica: el
+productor copia ahi lo que quiere enviar y el consumidor lo copia a su propio
+buffer. El objetivo es implementarlo \'unicamente con \texttt{fork()} y
+archivos de texto, sin emplear tuber\'ias, se\~nales, \texttt{wait},
+\texttt{exec}, sem\'aforos, mutex, monitores, memoria compartida real ni colas
+de mensajes. La sincronizaci\'on se resuelve con espera ocupada (ciclos
+vac\'ios) y retardos.
 
 %% ------------------------------------------------------------------
 \section{Marco te\'orico}
@@ -105,6 +110,12 @@ sincronizaci\'on se resuelve con espera ocupada (ciclos vac\'ios) y retardos.
     \item \textbf{Espera ocupada:} el proceso que no puede avanzar repite un
     ciclo hasta que la condici\'on cambia; se a\~naden peque\~nos retardos
     (\texttt{usleep}) para ceder tiempo de CPU.
+    \item \textbf{Buffer privado:} arreglo en memoria que pertenece a un solo
+    proceso; solo \'el lo lee y lo escribe, por lo que no requiere
+    sincronizaci\'on.
+    \item \textbf{Canal (archivo como memoria compartida l\'ogica):} archivo de
+    texto que ambos procesos leen y escriben y que hace de buz\'on entre el
+    productor y el consumidor.
     \item \textbf{COBEGIN / COEND:} notaci\'on que encierra bloques de c\'odigo
     que pueden ejecutarse en paralelo.
 \end{itemize}
@@ -113,17 +124,22 @@ sincronizaci\'on se resuelve con espera ocupada (ciclos vac\'ios) y retardos.
 \section{Desarrollo}
 \subsection{Estructura del programa}
 Se crea un proceso productor con \texttt{fork()}. El proceso padre act\'ua como
-consumidor y el hijo como productor. El buffer compartido es el archivo
-\texttt{buffer.txt} (una l\'inea por elemento) y el candado es
-\texttt{candado.txt}. El productor agrega al final del archivo y el consumidor
-retira el primer elemento, por lo que se respeta el orden FIFO.
+consumidor y el hijo como productor. Cada proceso declara su propio arreglo
+\texttt{bufferPropio[BUFFER\_SIZE]} en memoria; el productor acumula ah\'i lo
+que genera y el consumidor ah\'i lo que recibe. La comunicaci\'on se hace con
+el archivo \texttt{memoria.txt} (una l\'inea por elemento), que se usa como
+memoria compartida l\'ogica, y la exclusi\'on mutua con \texttt{candado.txt}.
+El productor copia al final del canal y el consumidor extrae el primer
+elemento, por lo que se respeta el orden FIFO.
 
 \subsection{Candado at\'omico}
 La exclusi\'on mutua se logra creando el archivo candado con la bandera
 \texttt{O\_CREAT | O\_EXCL}. El sistema operativo realiza esa creaci\'on de
 forma indivisible: si el archivo ya existe, la llamada falla con
 \texttt{EEXIST} y el proceso reintenta en un ciclo (espera ocupada). Al
-terminar, el candado se libera con \texttt{unlink()}.
+terminar, el candado se libera con \texttt{unlink()}. El candado protege
+\'unicamente el acceso al canal; los buffers privados no lo necesitan porque
+pertenecen a un solo proceso.
 
 \begin{lstlisting}[language=C]
 void adquirirCandado(){
@@ -138,15 +154,16 @@ void liberarCandado(){
 \end{lstlisting}
 
 \subsection{Regi\'on cr\'itica}
-El conteo del buffer y su modificaci\'on se realizan \emph{dentro} del candado,
+El conteo del canal y su modificaci\'on se realizan \emph{dentro} del candado,
 de modo que la verificaci\'on y la operaci\'on forman una sola acci\'on
-at\'omica frente al otro proceso.
+at\'omica frente al otro proceso. Los buffers privados quedan fuera de la
+regi\'on cr\'itica porque cada uno pertenece a un solo proceso.
 
 \begin{lstlisting}[language=C]
-/* Productor */
+/* Productor: solo el acceso al canal es region critica */
 adquirirCandado();
-if(contarItems() < BUFFER_SIZE){
-    agregarItem(numero);
+if(contarItems() < BUFFER_SIZE && n > 0){
+    agregarItem(bufferPropio[0]);
     liberarCandado();
     /* ... */
 } else {
@@ -176,81 +193,114 @@ soluci\'on presentada debe evitar:
     \item \textbf{P\'erdida de actualizaciones.} Como \texttt{quitarItem()}
     reescribe todo el archivo, un agregado que ocurra entre la lectura y la
     reescritura se perder\'ia. Igualmente, el productor podr\'ia desbordar el
-    buffer o el consumidor extraer de un buffer vac\'io.
+    canal o el consumidor extraer de un canal vac\'io.
+
+    \item \textbf{Desbordamiento de los buffers privados.} El productor no debe
+    generar m\'as all\'a de la capacidad de su arreglo, ni el consumidor
+    recibir m\'as all\'a de la capacidad del suyo; de lo contrario se
+    sobrescribir\'ia memoria v\'alida.
+
+    \item \textbf{Canal lleno o vac\'io.} Si el canal est\'a lleno el productor
+    no puede enviar aunque su buffer privado tenga datos; si est\'a vac\'io el
+    consumidor no puede recibir. Estas condiciones deben verificarse siempre
+    dentro de la regi\'on cr\'itica.
 \end{enumerate}
 
 %% ------------------------------------------------------------------
 \section{Soluci\'on planteada}
-La soluci\'on se basa en dos ideas: el candado se toma mediante una
-operaci\'on at\'omica del sistema de archivos y toda verificaci\'on y
-modificaci\'on del buffer se realiza dentro de la regi\'on cr\'itica. El
-siguiente fragmento muestra el algoritmo implementado, encerrado entre
-COBEGIN y COEND para representar los dos procesos que corren en paralelo.
+La soluci\'on se basa en tres ideas: cada proceso mantiene su propio buffer en
+memoria, el canal se implementa con un archivo de texto y el candado se toma
+mediante una operaci\'on at\'omica del sistema de archivos; toda
+verificaci\'on y modificaci\'on del canal se realiza dentro de la regi\'on
+cr\'itica. El siguiente fragmento muestra el algoritmo implementado, encerrado
+entre COBEGIN y COEND para representar los dos procesos que corren en paralelo.
 
 \begin{lstlisting}[language=C]
-// Variables compartidas: buffer.txt (buffer) y candado.txt (candado). 
+// Canal compartido: memoria.txt. Candado: candado.txt.
+// Cada proceso tiene su propio buffer en memoria: bufferPropio[].
 
-// COBEGIN 
-//Productor (proceso hijo) */
+// COBEGIN
+// Productor (proceso hijo)
+int bufferPropio[BUFFER_SIZE];
+int n = 0;
 int numero = 1;
 while(1){
-    adquirirCandado();
-    if(contarItems() < BUFFER_SIZE){
-        agregarItem(numero);
-        liberarCandado();
-        printf("[Productor] genero: %d\n", numero);
+    // Produce en su buffer privado si hay espacio.
+    if(n < BUFFER_SIZE){
+        bufferPropio[n] = numero;
+        n++;
         numero = (numero % 10) + 1;
+    }
+    // Envia al canal solo si hay espacio y tiene algo pendiente.
+    adquirirCandado();
+    if(contarItems() < BUFFER_SIZE && n > 0){
+        int enviado = bufferPropio[0];
+        agregarItem(enviado);
+        for(int i = 1; i < n; i++) bufferPropio[i-1] = bufferPropio[i];
+        n--;
+        liberarCandado();
+        printf("[Productor] envio: %d\n", enviado);
     } else {
         liberarCandado();
     }
     usleep(200000);
 }
 
-// Consumidor (proceso padre) 
+// Consumidor (proceso padre)
+int bufferPropio[BUFFER_SIZE];
+int n = 0;
 while(1){
+    // Recibe del canal a su buffer privado si hay espacio.
     adquirirCandado();
-    int item = -1;
-    if(contarItems() > 0){
-        item = quitarItem();
+    if(contarItems() > 0 && n < BUFFER_SIZE){
+        bufferPropio[n] = quitarItem();
+        n++;
     }
     liberarCandado();
-    if(item != -1){
+    // Consume de su buffer privado.
+    if(n > 0){
+        int item = bufferPropio[0];
+        for(int i = 1; i < n; i++) bufferPropio[i-1] = bufferPropio[i];
+        n--;
         printf("\t\t[Consumidor] tomo: %d\n", item);
     }
     usleep(500000);
 }
-// COEND 
+// COEND
 \end{lstlisting}
 
 \noindent
-Con esto, \texttt{adquirir}/\texttt{liberar} garantizan exclusi\'on mutua y las
-verificaciones de lleno/vac\'io ya no compiten con el otro proceso.
+Con esto, \texttt{adquirir}/\texttt{liberar} garantizan exclusi\'on mutua sobre
+el canal y las verificaciones de lleno/vac\'io ya no compiten con el otro
+proceso, mientras que cada buffer privado se manipula sin candado.
 
 %% ------------------------------------------------------------------
 \section{Pruebas y resultados}
 Se compil\'o con \texttt{gcc ComePica.c -o bin/comepica -Wall -Wextra} sin
-errores y se ejecut\'o durante algunos segundos. La salida muestra que el
-productor nunca supera los 10 elementos y el consumidor solo retira cuando hay
-datos; el orden de retiro es FIFO.
+errores y se ejecut\'o durante algunos segundos. La salida muestra que el canal
+nunca supera los 10 elementos, que ninguno de los buffers privados se desborda
+y que el consumidor solo retira cuando hay datos; el orden de retiro es FIFO.
 
 \begin{lstlisting}
-[Productor] genero: 1
-[Productor] genero: 2
-[Productor] genero: 3
+[Productor] envio: 1
+[Productor] envio: 2
+[Productor] envio: 3
         [Consumidor] tomo: 1
-[Productor] genero: 4
+[Productor] envio: 4
 ...
         [Consumidor] tomo: 5
 \end{lstlisting}
 
 %% ------------------------------------------------------------------
 \section{Conclusiones}
-El uso de archivos de texto como recurso compartido es suficiente si se
-construye un candado at\'omico y se define con precisi\'on la regi\'on
-cr\'itica. La principal ense\~nanza es que no basta con ``bloquear'' el acceso:
-separar la verificaci\'on de la operaci\'on deja abierta una condici\'on de
-carrera. Colocar ambas acciones bajo el candado y usar una primitiva
-indivisible del sistema de archivos elimina las p\'erdidas de actualizaciones y
-respeta los l\'imites del buffer.
+Separar los buffers privados del medio de comunicaci\'on simplifica la
+sincronizaci\'on: cada proceso manipula su arreglo sin candado y solo el
+acceso al archivo que hace de memoria compartida l\'ogica requiere
+exclusi\'on mutua. La principal ense\~nanza es que no basta con ``bloquear'' el
+acceso: separar la verificaci\'on de la operaci\'on deja abierta una
+condici\'on de carrera. Colocar ambas acciones bajo el candado y usar una
+primitiva indivisible del sistema de archivos elimina las p\'erdidas de
+actualizaciones y respeta tanto la capacidad del canal como la de cada buffer
+privado.
 
 \end{document}

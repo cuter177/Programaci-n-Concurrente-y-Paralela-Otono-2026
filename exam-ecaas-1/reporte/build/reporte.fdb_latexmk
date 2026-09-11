@@ -1,10 +1,10 @@
 # Fdb version 4
-["xdvipdfmx"] 1789147474.79547 "build/reporte.xdv" "build/reporte.pdf" "build/reporte" 1789147474.93474 0
-  "build/reporte.xdv" 1789147474.76416 111656 d1fc295e2af4304aa3f52d96b6616778 "xelatex"
+["xdvipdfmx"] 1789150252.94894 "build/reporte.xdv" "build/reporte.pdf" "build/reporte" 1789150253.08637 0
+  "build/reporte.xdv" 1789150252.91789 155428 c1aef9ee86791c82c3b3ecb50fc7bd32 "xelatex"
   (generated)
   "build/reporte.pdf"
   (rewritten before read)
-["xelatex"] 1789147474.30212 "reporte.tex" "build/reporte.xdv" "reporte" 1789147474.93406 0
+["xelatex"] 1789150252.45379 "reporte.tex" "build/reporte.xdv" "reporte" 1789150253.08537 0
   "/usr/share/texmf-dist/fonts/map/fontname/texfonts.map" 1775415801 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texmf-dist/fonts/tfm/adobe/zapfding/pzdr.tfm" 1775415801 1528 f853c4d1b4e0550255e02831fdc8496f ""
   "/usr/share/texmf-dist/fonts/tfm/public/cm/cmmi12.tfm" 1775415801 1524 4414a8315f39513458b80dfc63bff03a ""
@@ -69,10 +69,10 @@
   "/usr/share/texmf-dist/tex/latex/xcolor/xcolor.sty" 1775415801 55384 b454dec21c2d9f45ec0b793f0995b992 ""
   "/usr/share/texmf-dist/web2c/texmf.cnf" 1775415801 43569 fd570f2fa160877d211e859f687312ba ""
   "/var/lib/texmf/web2c/xetex/xelatex.fmt" 1780944279 4859953 fd861083c35add112ba8f52c9a3258f9 ""
-  "build/reporte.aux" 1789147474.76416 1444 69e5b63d3d9dfafaaec03bb02ea8a20e "xelatex"
-  "build/reporte.out" 1789147474.76416 1542 36e9dbe57ffd4e3f7aeefa4511afa4a1 "xelatex"
-  "build/reporte.toc" 1789147474.76416 825 140c5f856d506c43a1a3749e76d3ea74 "xelatex"
-  "reporte.tex" 1789146405.6559 8953 e751bbad733b4d8f66e175d0de4e726c ""
+  "build/reporte.aux" 1789150252.91689 1444 845c19b11a07b4830e89b18781e1dc19 "xelatex"
+  "build/reporte.out" 1789150252.91689 1542 36e9dbe57ffd4e3f7aeefa4511afa4a1 "xelatex"
+  "build/reporte.toc" 1789150252.91789 825 f77b13ccff6783a74c891022af7f8e95 "xelatex"
+  "reporte.tex" 1789150249.12486 11697 223a0b781c60e206cff17643d09e89ed ""
   (generated)
   "build/reporte.aux"
   "build/reporte.log"
