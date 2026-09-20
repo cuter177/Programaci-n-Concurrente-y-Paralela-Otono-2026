@@ -1,0 +1,306 @@
+\documentclass[12pt,letterpaper]{article}
+
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setdefaultlanguage{spanish}
+\setmainfont{Liberation Serif}
+\setmonofont{Liberation Mono}
+
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{ragged2e}
+\usepackage{hyperref}
+
+\definecolor{codegray}{gray}{0.95}
+\definecolor{codegreen}{rgb}{0.0,0.45,0.0}
+\definecolor{codeblue}{rgb}{0.1,0.1,0.6}
+
+\lstset{
+    backgroundcolor=\color{codegray},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{codeblue}\bfseries,
+    commentstyle=\color{codegreen}\itshape,
+    stringstyle=\color{red!70!black},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    numbersep=8pt,
+    breaklines=true,
+    showstringspaces=false,
+    frame=single,
+    rulecolor=\color{gray!50},
+    tabsize=4,
+    extendedchars=true
+}
+
+\title{Pr\'actica 2. Productor -- Consumidor}
+\author{Islas G\'omez Luis Antonio \and Ram\'irez Candia Alfredo \and P\'erez Flores Julio C\'esar \and Navarro Soto Mario Alberto}
+\date{\today}
+
+\begin{document}
+
+%% ------------------------------------------------------------------
+%% PORTADA
+%% ------------------------------------------------------------------
+\begin{titlepage}
+    \centering
+    \vspace*{0.5cm}
+
+    {\Large\bfseries BENEM\'ERITA UNIVERSIDAD AUT\'ONOMA DE PUEBLA\par}
+    \vspace{0.4cm}
+    {\large Facultad de Ciencias de la Computaci\'on\par}
+    \vspace{1.2cm}
+
+    {\large Programaci\'on Concurrente y Paralela\par}
+
+    \vfill
+
+    {\Huge\bfseries Pr\'actica 2\par}
+    \vspace{0.4cm}
+    {\LARGE Productor -- Consumidor\par}
+    \vspace{0.3cm}
+    {\large (Primer parcial)\par}
+
+    \vfill
+
+    {\large\bfseries Equipo:\par}
+    \vspace{0.3cm}
+    Islas G\'omez Luis Antonio --- 202372860\par
+    Ram\'irez Candia Alfredo --- 202375947\par
+    P\'erez Flores Julio C\'esar --- 202247445\par
+    Navarro Soto Mario Alberto --- 202264602\par
+
+    \vfill
+
+    {\large Docente: Hilda Castillo Zacatelco\par}
+    \vspace{0.6cm}
+    {\large \today\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+%% ------------------------------------------------------------------
+\section{Introducci\'on y objetivo}
+El problema productor--consumidor consiste en dos procesos que se comunican
+datos: el productor los genera y el consumidor los retira. A diferencia de la
+versi\'on original, ahora \emph{cada proceso tiene su propio buffer en memoria}
+(un arreglo privado) y la comunicaci\'on entre ambos se realiza mediante un
+archivo de texto que se emplea como una memoria compartida l\'ogica: el
+productor copia ahi lo que quiere enviar y el consumidor lo copia a su propio
+buffer. El objetivo es implementarlo \'unicamente con \texttt{fork()} y
+archivos de texto, sin emplear tuber\'ias, se\~nales, \texttt{wait},
+\texttt{exec}, sem\'aforos, mutex, monitores, memoria compartida real ni colas
+de mensajes. La sincronizaci\'on se resuelve con espera ocupada (ciclos
+vac\'ios) y retardos.
+
+%% ------------------------------------------------------------------
+\section{Marco te\'orico}
+\begin{itemize}[leftmargin=1.4cm]
+    \item \textbf{Regi\'on cr\'itica:} fragmento de c\'odigo que accede a un
+    recurso compartido y no debe ejecutarse simult\'aneamente por dos procesos.
+    \item \textbf{Condici\'on de carrera:} fallo producido cuando el resultado
+    depende del orden no determinista en que los procesos acceden al recurso.
+    \item \textbf{Exclusi\'on mutua:} garant\'ia de que solo un proceso est\'a en
+    la regi\'on cr\'itica a la vez.
+    \item \textbf{Espera ocupada:} el proceso que no puede avanzar repite un
+    ciclo hasta que la condici\'on cambia; se a\~naden peque\~nos retardos
+    (\texttt{usleep}) para ceder tiempo de CPU.
+    \item \textbf{Buffer privado:} arreglo en memoria que pertenece a un solo
+    proceso; solo \'el lo lee y lo escribe, por lo que no requiere
+    sincronizaci\'on.
+    \item \textbf{Canal (archivo como memoria compartida l\'ogica):} archivo de
+    texto que ambos procesos leen y escriben y que hace de buz\'on entre el
+    productor y el consumidor.
+    \item \textbf{COBEGIN / COEND:} notaci\'on que encierra bloques de c\'odigo
+    que pueden ejecutarse en paralelo.
+\end{itemize}
+
+%% ------------------------------------------------------------------
+\section{Desarrollo}
+\subsection{Estructura del programa}
+Se crea un proceso productor con \texttt{fork()}. El proceso padre act\'ua como
+consumidor y el hijo como productor. Cada proceso declara su propio arreglo
+\texttt{bufferPropio[BUFFER\_SIZE]} en memoria; el productor acumula ah\'i lo
+que genera y el consumidor ah\'i lo que recibe. La comunicaci\'on se hace con
+el archivo \texttt{memoria.txt} (una l\'inea por elemento), que se usa como
+memoria compartida l\'ogica, y la exclusi\'on mutua con \texttt{candado.txt}.
+El productor copia al final del canal y el consumidor extrae el primer
+elemento, por lo que se respeta el orden FIFO.
+
+\subsection{Candado at\'omico}
+La exclusi\'on mutua se logra creando el archivo candado con la bandera
+\texttt{O\_CREAT | O\_EXCL}. El sistema operativo realiza esa creaci\'on de
+forma indivisible: si el archivo ya existe, la llamada falla con
+\texttt{EEXIST} y el proceso reintenta en un ciclo (espera ocupada). Al
+terminar, el candado se libera con \texttt{unlink()}. El candado protege
+\'unicamente el acceso al canal; los buffers privados no lo necesitan porque
+pertenecen a un solo proceso.
+
+\begin{lstlisting}[language=C]
+void adquirirCandado(){
+    while(open(ARCHIVO_CANDADO, O_CREAT | O_EXCL | O_WRONLY, 0600) == -1){
+        usleep(1000);
+    }
+}
+
+void liberarCandado(){
+    unlink(ARCHIVO_CANDADO);
+}
+\end{lstlisting}
+
+\subsection{Regi\'on cr\'itica}
+El conteo del canal y su modificaci\'on se realizan \emph{dentro} del candado,
+de modo que la verificaci\'on y la operaci\'on forman una sola acci\'on
+at\'omica frente al otro proceso. Los buffers privados quedan fuera de la
+regi\'on cr\'itica porque cada uno pertenece a un solo proceso.
+
+\begin{lstlisting}[language=C]
+/* Productor: solo el acceso al canal es region critica */
+adquirirCandado();
+if(contarItems() < BUFFER_SIZE && n > 0){
+    agregarItem(bufferPropio[0]);
+    liberarCandado();
+    /* ... */
+} else {
+    liberarCandado();
+}
+\end{lstlisting}
+
+%% ------------------------------------------------------------------
+\section{Problemas de sincronizaci\'on y condiciones de carrera}
+Al compartir recursos mediante archivos surgen los siguientes riesgos, que la
+soluci\'on presentada debe evitar:
+\begin{enumerate}[leftmargin=1.4cm]
+    \item \textbf{Condici\'on de carrera en el acceso concurrente.} Si los dos
+    procesos leen y modifican el archivo sin coordinarse, sus operaciones se
+    intercalan y el resultado depende del orden de ejecuci\'on.
+
+    \item \textbf{Falta de atomicidad del candado.} Un candado construido
+    leyendo y luego escribiendo el archivo deja una ventana entre ambas
+    operaciones; ambos procesos podr\'ian encontrar el candado libre y entrar a
+    la vez. Por eso se requiere una primitiva indivisible.
+
+    \item \textbf{Verificaci\'on y modificaci\'on separadas.} Comprobar el
+    conteo del buffer antes de acceder a \'el produce una condici\'on
+    \emph{check-then-act}: entre la comprobaci\'on y la operaci\'on el buffer
+    puede cambiar por el otro proceso.
+
+    \item \textbf{P\'erdida de actualizaciones.} Como \texttt{quitarItem()}
+    reescribe todo el archivo, un agregado que ocurra entre la lectura y la
+    reescritura se perder\'ia. Igualmente, el productor podr\'ia desbordar el
+    canal o el consumidor extraer de un canal vac\'io.
+
+    \item \textbf{Desbordamiento de los buffers privados.} El productor no debe
+    generar m\'as all\'a de la capacidad de su arreglo, ni el consumidor
+    recibir m\'as all\'a de la capacidad del suyo; de lo contrario se
+    sobrescribir\'ia memoria v\'alida.
+
+    \item \textbf{Canal lleno o vac\'io.} Si el canal est\'a lleno el productor
+    no puede enviar aunque su buffer privado tenga datos; si est\'a vac\'io el
+    consumidor no puede recibir. Estas condiciones deben verificarse siempre
+    dentro de la regi\'on cr\'itica.
+\end{enumerate}
+
+%% ------------------------------------------------------------------
+\section{Soluci\'on planteada}
+La soluci\'on se basa en tres ideas: cada proceso mantiene su propio buffer en
+memoria, el canal se implementa con un archivo de texto y el candado se toma
+mediante una operaci\'on at\'omica del sistema de archivos; toda
+verificaci\'on y modificaci\'on del canal se realiza dentro de la regi\'on
+cr\'itica. El siguiente fragmento muestra el algoritmo implementado, encerrado
+entre COBEGIN y COEND para representar los dos procesos que corren en paralelo.
+
+\begin{lstlisting}[language=C]
+// Canal compartido: memoria.txt. Candado: candado.txt.
+// Cada proceso tiene su propio buffer en memoria: bufferPropio[].
+
+// COBEGIN
+// Productor (proceso hijo)
+int bufferPropio[BUFFER_SIZE];
+int n = 0;
+int numero = 1;
+while(1){
+    // Produce en su buffer privado si hay espacio.
+    if(n < BUFFER_SIZE){
+        bufferPropio[n] = numero;
+        n++;
+        numero = (numero % 10) + 1;
+    }
+    // Envia al canal solo si hay espacio y tiene algo pendiente.
+    adquirirCandado();
+    if(contarItems() < BUFFER_SIZE && n > 0){
+        int enviado = bufferPropio[0];
+        agregarItem(enviado);
+        for(int i = 1; i < n; i++) bufferPropio[i-1] = bufferPropio[i];
+        n--;
+        liberarCandado();
+        printf("[Productor] envio: %d\n", enviado);
+    } else {
+        liberarCandado();
+    }
+    usleep(200000);
+}
+
+// Consumidor (proceso padre)
+int bufferPropio[BUFFER_SIZE];
+int n = 0;
+while(1){
+    // Recibe del canal a su buffer privado si hay espacio.
+    adquirirCandado();
+    if(contarItems() > 0 && n < BUFFER_SIZE){
+        bufferPropio[n] = quitarItem();
+        n++;
+    }
+    liberarCandado();
+    // Consume de su buffer privado.
+    if(n > 0){
+        int item = bufferPropio[0];
+        for(int i = 1; i < n; i++) bufferPropio[i-1] = bufferPropio[i];
+        n--;
+        printf("\t\t[Consumidor] tomo: %d\n", item);
+    }
+    usleep(500000);
+}
+// COEND
+\end{lstlisting}
+
+\noindent
+Con esto, \texttt{adquirir}/\texttt{liberar} garantizan exclusi\'on mutua sobre
+el canal y las verificaciones de lleno/vac\'io ya no compiten con el otro
+proceso, mientras que cada buffer privado se manipula sin candado.
+
+%% ------------------------------------------------------------------
+\section{Pruebas y resultados}
+Se compil\'o con \texttt{gcc ComePica.c -o bin/comepica -Wall -Wextra} sin
+errores y se ejecut\'o durante algunos segundos. La salida muestra que el canal
+nunca supera los 10 elementos, que ninguno de los buffers privados se desborda
+y que el consumidor solo retira cuando hay datos; el orden de retiro es FIFO.
+
+\begin{lstlisting}
+[Productor] envio: 1
+[Productor] envio: 2
+[Productor] envio: 3
+        [Consumidor] tomo: 1
+[Productor] envio: 4
+...
+        [Consumidor] tomo: 5
+\end{lstlisting}
+
+%% ------------------------------------------------------------------
+\section{Conclusiones}
+Separar los buffers privados del medio de comunicaci\'on simplifica la
+sincronizaci\'on: cada proceso manipula su arreglo sin candado y solo el
+acceso al archivo que hace de memoria compartida l\'ogica requiere
+exclusi\'on mutua. La principal ense\~nanza es que no basta con ``bloquear'' el
+acceso: separar la verificaci\'on de la operaci\'on deja abierta una
+condici\'on de carrera. Colocar ambas acciones bajo el candado y usar una
+primitiva indivisible del sistema de archivos elimina las p\'erdidas de
+actualizaciones y respeta tanto la capacidad del canal como la de cada buffer
+privado.
+
+\end{document}

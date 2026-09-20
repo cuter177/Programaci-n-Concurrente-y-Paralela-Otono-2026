@@ -1,0 +1,11 @@
+\xpg@aux {}{spanish}
+\contentsline {section}{\numberline {1}Introducci\'on y objetivo}{2}{section.1}%
+\contentsline {section}{\numberline {2}Marco te\'orico}{2}{section.2}%
+\contentsline {section}{\numberline {3}Desarrollo}{2}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Estructura del programa}{2}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Candado at\'omico}{3}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Regi\'on cr\'itica}{3}{subsection.3.3}%
+\contentsline {section}{\numberline {4}Problemas de sincronizaci\'on y condiciones de carrera}{3}{section.4}%
+\contentsline {section}{\numberline {5}Soluci\'on planteada}{4}{section.5}%
+\contentsline {section}{\numberline {6}Pruebas y resultados}{5}{section.6}%
+\contentsline {section}{\numberline {7}Conclusiones}{6}{section.7}%
