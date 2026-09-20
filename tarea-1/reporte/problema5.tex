@@ -3,7 +3,120 @@
 %% ------------------------------------------------------------------
 \section{Problema 5. M\'aximo de una matriz}
 
-\emph{Pendiente por desarrollar.}
+\subsection*{Enunciado}
+Dado un arreglo bidimensional $A$ de tama\~no $N \times M$ ($N$ filas y $M$
+columnas), se requiere dise\~nar un algoritmo concurrente que determine el valor
+m\'aximo global de la matriz utilizando paralelismo de datos, modelado con
+grafos de dependencia, condiciones de Bernstein y primitivas
+\texttt{COBEGIN--COEND}.
 
-% TODO: modelar el c\'alculo del valor m\'aximo de una matriz de N x M con
-% grafos de dependencia, COBEGIN--COEND y condiciones de Bernstein.
+\subsection*{An\'alisis del algoritmo}
+La matriz se particiona horizontalmente asignando una fila completa a cada
+proceso concurrente:
+\begin{enumerate}[leftmargin=1.4cm]
+    \item \textbf{Fase Concurrente ($S_0, S_1, \dots, S_{N-1}$):} Cada proceso
+    $S_i$ calcula el valor m\'aximo de su fila correspondiente y lo almacena en
+    la posici\'on $i$ de un vector auxiliar unidimensional $\text{max\_fila}$:
+    \[
+        \text{max\_fila}[i] = \max_{0 \le j < M} \{ A[i][j] \}.
+    \]
+    \item \textbf{Fase de Reducci\'on Secuencial ($S_{\text{final}}$):} Un proceso
+    final recorre el arreglo auxiliar $\text{max\_fila}$ de longitud $N$ y
+    extrae el m\'aximo global:
+    \[
+        \text{max\_global} = \max_{0 \le i < N} \{ \text{max\_fila}[i] \}.
+    \]
+\end{enumerate}
+
+\subsection*{Condiciones de Bernstein}
+Para cada proceso se identifican los conjuntos de variables que lee ($L$) y que
+escribe ($E$):
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Proceso / Tarea & Lee $L$ & Escribe $E$ \\
+\midrule
+$S_i$ (fila $i$, con $0 \le i < N$) & $\{ A[i][j] \mid 0 \le j < M \}$ & $\{ \text{max\_fila}[i] \}$ \\
+$S_{\text{final}}$ (reducci\'on)     & $\{ \text{max\_fila}[i] \mid 0 \le i < N \}$ & $\{ \text{max\_global} \}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Verificaci\'on de independencia:
+\begin{itemize}[leftmargin=1.4cm]
+    \item \textbf{Entre filas independientes ($S_a \parallel S_b$, con $a \neq b$):}
+    \[
+        L(S_a) \cap E(S_b) = \emptyset, \qquad
+        E(S_a) \cap L(S_b) = \emptyset, \qquad
+        E(S_a) \cap E(S_b) = \emptyset.
+    \]
+    Cada proceso lee elementos de su propia fila y escribe en una posici\'on
+    desacoplada del arreglo. Al cumplirse simult\'aneamente las tres
+    condiciones, todos los procesos $\{S_0, S_1, \dots, S_{N-1}\}$ pueden
+    ejecutarse en paralelo.
+    \item \textbf{Dependencia con el proceso final ($S_i \rightarrow S_{\text{final}}$):}
+    \[
+        E(S_i) \cap L(S_{\text{final}}) = \{ \text{max\_fila}[i] \} \neq \emptyset.
+    \]
+    Existe una dependencia estricta de tipo RAW (\emph{Read-After-Write}). Por
+    ende, $S_{\text{final}}$ no puede ejecutarse concurrentemente con las filas
+    y requiere una barrera de sincronizaci\'on previa.
+\end{itemize}
+
+\subsection*{Grafo de dependencias}
+Los procesos de fila se bifurcan en paralelo y convergen mediante una barrera
+de sincronizaci\'on (\texttt{COEND}) antes de ejecutar la reducci\'on secuencial:
+
+\begin{center}
+\begin{tikzpicture}[node distance=1.4cm]
+    \node[task] (inicio) {Inicio};
+    \node[wide] (s0) at (-5.4,-2.0) {S0: max\_fila[0]};
+    \node[wide] (s1) at (-1.8,-2.0) {S1: max\_fila[1]};
+    \node[font=\large] (dots) at (1.8,-2.0) {$\cdots$};
+    \node[wide] (sn) at (5.4,-2.0) {S\_N-1: max\_fila[N-1]};
+
+    \node[wide] (sfinal) at (0,-3.8) {S\_final: max\_global};
+    \node[task] (fin) at (0,-5.2) {Fin};
+
+    \node[font=\scriptsize\itshape, text=red!70!black, align=center,
+          anchor=west] at (1.9,-3.8)
+          {Barrera de sincronizaci\'on\\(\texttt{COEND})};
+
+    \draw[dep] (inicio) -- (s0);
+    \draw[dep] (inicio) -- (s1);
+    \draw[dep] (inicio) -- (sn);
+
+    \draw[dep] (s0) -- (sfinal);
+    \draw[dep] (s1) -- (sfinal);
+    \draw[dep] (sn) -- (sfinal);
+
+    \draw[dep] (sfinal) -- (fin);
+\end{tikzpicture}
+\end{center}
+
+El camino cr\'itico es $\text{Inicio} \rightarrow S_i \rightarrow S_{\text{final}} \rightarrow \text{Fin}$ y el paralelismo m\'aximo es $N$.
+
+\subsection*{Soluci\'on con COBEGIN--COEND}
+\begin{lstlisting}
+// Entrada: A[N][M] (Matriz de NxM)
+// Auxiliar: max_fila[N]
+// Salida: max_global
+
+COBEGIN
+    S_0;     // max_fila[0]   = max(A[0][0..M-1])
+    S_1;     // max_fila[1]   = max(A[1][0..M-1])
+    ...
+    S_N_1;   // max_fila[N-1] = max(A[N-1][0..M-1])
+COEND
+
+S_final;     // max_global    = max(max_fila[0..N-1])
+escribir max_global
+\end{lstlisting}
+
+\noindent
+La b\'usqueda del m\'aximo en cada fila es totalmente independiente, por lo que
+se ejecuta dentro del bloque \texttt{COBEGIN}. La variable \texttt{max\_global}
+representa la consolidaci\'on de los resultados intermedios y s\'olo puede
+calcularse una vez que la barrera \texttt{COEND} garantiza que todas las filas
+concluyeron su trabajo.

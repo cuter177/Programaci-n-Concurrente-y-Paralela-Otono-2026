@@ -81,12 +81,12 @@ hay dependencias:
 \textbf{Dentro de cada estudiante:}
 
 \vspace{0.4cm}
-\begin{tikzpicture}[node distance=1.2cm and 1.6cm]
-    \node[task] (t1) {T1: pp = (p1+p2+p3)/3};
-    \node[task, below=1.2cm of t1] (t2) {T2: pa = (a1+a2+a3+a4)/4};
-    \node[task, right=2cm of $(t1)!0.5!(t2)$] (t3) {T3: cf = 0.5*pp + 0.5*pa};
-    \node[task, right=1.6cm of t3] (t4) {T4: aprobado = ... y (cf>=6)};
-    \node[task, right=1.6cm of t4] (t5) {T5: imprimir nombre};
+\begin{tikzpicture}[node distance=1.0cm and 1.3cm]
+    \node[wide] (t1) {T1: pp = (p1+p2+p3)/3};
+    \node[wide, below=1.0cm of t1] (t2) {T2: pa = (a1+a2+a3+a4)/4};
+    \node[wide, right=1.0cm of $(t1)!0.5!(t2)$] (t3) {T3: cf = 0.5*pp + 0.5*pa};
+    \node[wide, right=1.0cm of t3] (t4) {T4: aprobado = (p1>=6) y ... y (cf>=6)};
+    \node[wide, right=1.0cm of t4] (t5) {T5: imprimir nombre};
     \draw[dep] (t1) -- (t3);
     \draw[dep] (t2) -- (t3);
     \draw[dep] (t3) -- (t4);

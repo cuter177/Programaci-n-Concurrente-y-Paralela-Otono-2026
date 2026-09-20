@@ -1,10 +1,10 @@
 # Fdb version 4
-["xdvipdfmx"] 1789921140.5599 "build/reporte.xdv" "build/reporte.pdf" "build/reporte" 1789921140.69011 0
-  "build/reporte.xdv" 1789921140.51195 122700 714cac0fed06ed11423c556c02f42ddc "xelatex"
+["xdvipdfmx"] 1789937794.62441 "build/reporte.xdv" "build/reporte.pdf" "build/reporte" 1789937794.7594 0
+  "build/reporte.xdv" 1789937794.57551 169576 c94d8e0e0db162b2745cb8f2e3ce8489 "xelatex"
   (generated)
   "build/reporte.pdf"
   (rewritten before read)
-["xelatex"] 1789921139.92513 "reporte.tex" "build/reporte.xdv" "reporte" 1789921140.68878 0
+["xelatex"] 1789937793.77762 "reporte.tex" "build/reporte.xdv" "reporte" 1789937794.75787 0
   "/usr/share/texmf-dist/fonts/map/fontname/texfonts.map" 1775415801 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texmf-dist/fonts/tfm/adobe/zapfding/pzdr.tfm" 1775415801 1528 f853c4d1b4e0550255e02831fdc8496f ""
   "/usr/share/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex7.tfm" 1775415801 1004 54797486969f23fa377b128694d548df ""
@@ -146,17 +146,17 @@
   "/usr/share/texmf-dist/tex/latex/xcolor/xcolor.sty" 1775415801 55384 b454dec21c2d9f45ec0b793f0995b992 ""
   "/usr/share/texmf-dist/web2c/texmf.cnf" 1775415801 43569 fd570f2fa160877d211e859f687312ba ""
   "/var/lib/texmf/web2c/xetex/xelatex.fmt" 1780944279 4859953 fd861083c35add112ba8f52c9a3258f9 ""
-  "build/reporte.aux" 1789921140.51095 1539 71ca32ad76524ad11587e682677b3336 "xelatex"
-  "build/reporte.out" 1789921140.51195 2159 9a819905d0d5a1fa4fe3f61cc2f75f25 "xelatex"
-  "build/reporte.toc" 1789921140.51195 920 b138b0b39996d2d9c408368a53f7357a "xelatex"
+  "build/reporte.aux" 1789937794.57451 1539 0636345541f5e1ca793de6d12020d132 "xelatex"
+  "build/reporte.out" 1789937794.57551 2159 9a819905d0d5a1fa4fe3f61cc2f75f25 "xelatex"
+  "build/reporte.toc" 1789937794.57551 920 56d2b8f2f52a58ea9623b4f1d1fec04a "xelatex"
   "problema1.tex" 1789920913.63313 397 c459e0bc223c30d3e8d0a409388637d2 ""
   "problema2.tex" 1789920914.06114 349 6353eee42c20d8dd08bcbe54ee3677e2 ""
   "problema3.tex" 1789920914.48214 390 29faa44d5f73b020aeb47bf1e8de0185 ""
-  "problema4.tex" 1789921133.0819 3605 e9db8d742dd0ea145f8b9e39ee765166 ""
-  "problema5.tex" 1789920914.96415 378 3f28f59de30af0b9cfcf351c93af90b7 ""
-  "problema6.tex" 1789921136.74893 4392 3d44d3568e0a3b8a287df533652d9b77 ""
+  "problema4.tex" 1789937791.32049 3607 9ce6fc9867c4dcb578e0f961253be4da ""
+  "problema5.tex" 1789937761.02231 4740 f56e123933968d80643ac6de0c60f6f3 ""
+  "problema6.tex" 1789937791.32335 4404 0f00dbdc500469e259a391f921b7a84d ""
   "problema7.tex" 1789920915.36015 388 d8879707c28a8b61cce12446319155c8 ""
-  "reporte.tex" 1789921108.41973 5504 d754d78d87486d5008805954f160395c ""
+  "reporte.tex" 1789937784.87446 5602 b3e82becfc704ef9846b594de9f9d11d ""
   (generated)
   "build/reporte.aux"
   "build/reporte.log"

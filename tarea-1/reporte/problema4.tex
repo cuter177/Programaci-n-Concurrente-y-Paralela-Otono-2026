@@ -53,13 +53,13 @@ El grafo tiene forma de ``diamante'': dos tareas iniciales en paralelo, un
 punto de uni\'on y luego dos tareas finales en paralelo.
 
 \begin{center}
-\begin{tikzpicture}[node distance=1.2cm and 1.8cm]
-    \node[task] (t1) {T1: b2 = b*b};
-    \node[task, below=1.2cm of t1] (t2) {T2: ac4 = 4*a*c};
-    \node[task, right=2cm of $(t1)!0.5!(t2)$] (t3) {T3: D = b2 - ac4};
-    \node[task, right=1.8cm of t3] (t4) {T4: r = sqrt(D)};
-    \node[task, right=1.8cm of t4, yshift=1.4cm] (t5) {T5: x1 = (-b+r)/(2a)};
-    \node[task, right=1.8cm of t4, yshift=-1.4cm] (t6) {T6: x2 = (-b-r)/(2a)};
+\begin{tikzpicture}[node distance=1.0cm and 1.3cm]
+    \node[wide] (t1) {T1: b2 = b*b};
+    \node[wide, below=1.0cm of t1] (t2) {T2: ac4 = 4*a*c};
+    \node[wide, right=1.0cm of $(t1)!0.5!(t2)$] (t3) {T3: D = b2 - ac4};
+    \node[wide, right=1.0cm of t3] (t4) {T4: r = sqrt(D)};
+    \node[wide, right=1.0cm of t4, yshift=1.1cm] (t5) {T5: x1 = (-b+r)/(2a)};
+    \node[wide, right=1.0cm of t4, yshift=-1.1cm] (t6) {T6: x2 = (-b-r)/(2a)};
     \draw[dep] (t1) -- (t3);
     \draw[dep] (t2) -- (t3);
     \draw[dep] (t3) -- (t4);
