@@ -1,0 +1,159 @@
+\documentclass[12pt,letterpaper]{article}
+
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setdefaultlanguage{spanish}
+\setmainfont{Liberation Serif}
+\setmonofont{Liberation Mono}
+
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta, calc}
+
+\tikzset{
+    task/.style={
+        rectangle, rounded corners, draw=codeblue!60, fill=blue!5,
+        align=center, font=\small\ttfamily, inner sep=5pt,
+        minimum height=0.8cm
+    },
+    dep/.style={-{Latex[length=2mm]}, thick, draw=codeblue!70}
+}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{ragged2e}
+\usepackage{hyperref}
+
+\definecolor{codegray}{gray}{0.95}
+\definecolor{codegreen}{rgb}{0.0,0.45,0.0}
+\definecolor{codeblue}{rgb}{0.1,0.1,0.6}
+
+\lstset{
+    backgroundcolor=\color{codegray},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{codeblue}\bfseries,
+    commentstyle=\color{codegreen}\itshape,
+    stringstyle=\color{red!70!black},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    numbersep=8pt,
+    breaklines=true,
+    showstringspaces=false,
+    frame=single,
+    rulecolor=\color{gray!50},
+    tabsize=4,
+    extendedchars=true
+}
+
+\title{Tarea 1. Modelado de soluciones paralelas}
+\author{Islas G\'omez Luis Antonio \and Ram\'irez Candia Alfredo \and P\'erez Flores Julio C\'esar \and Navarro Soto Mario Alberto}
+\date{\today}
+
+\begin{document}
+
+%% ------------------------------------------------------------------
+%% PORTADA
+%% ------------------------------------------------------------------
+\begin{titlepage}
+    \centering
+    \vspace*{0.5cm}
+
+    {\Large\bfseries BENEM\'ERITA UNIVERSIDAD AUT\'ONOMA DE PUEBLA\par}
+    \vspace{0.4cm}
+    {\large Facultad de Ciencias de la Computaci\'on\par}
+    \vspace{1.2cm}
+
+    {\large Programaci\'on Concurrente y Paralela\par}
+
+    \vfill
+
+    {\Huge\bfseries Tarea 1\par}
+    \vspace{0.4cm}
+    {\LARGE Modelado de soluciones paralelas\par}
+    \vspace{0.3cm}
+    {\large (Primer parcial)\par}
+
+    \vfill
+
+    {\large\bfseries Equipo:\par}
+    \vspace{0.3cm}
+    Islas G\'omez Luis Antonio --- 202372860\par
+    Ram\'irez Candia Alfredo --- 202375947\par
+    P\'erez Flores Julio C\'esar --- 202247445\par
+    Navarro Soto Mario Alberto --- 202264602\par
+
+    \vfill
+
+    {\large Docente: Hilda Castillo Zacatelco\par}
+    \vspace{0.6cm}
+    {\large \today\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+%% ------------------------------------------------------------------
+\section{Introducci\'on y objetivo}
+El objetivo de esta tarea es modelar una soluci\'on paralela para cada uno de
+los ejercicios planteados, empleando tres herramientas de an\'alisis:
+los \textbf{grafos de dependencia}, las sentencias \textbf{COBEGIN--COEND} y
+las \textbf{condiciones de Bernstein}. El modelado no consiste en repartir el
+trabajo ``a ojo'', sino en identificar qu\'e tareas pueden ejecutarse
+simult\'aneamente y cu\'ales deben respetar un orden obligatorio.
+
+%% ------------------------------------------------------------------
+\section{Marco te\'orico}
+\begin{itemize}[leftmargin=1.4cm]
+    \item \textbf{COBEGIN--COEND:} notaci\'on de pseudoc\'odigo que expresa
+    paralelismo (fork/join). Las sentencias encerradas entre \texttt{COBEGIN} y
+    \texttt{COEND} son concurrentes: no existe un orden predefinido entre
+    ellas, y el proceso padre espera a que \emph{todas} terminen antes de
+    continuar despu\'es del \texttt{COEND}.
+
+    \item \textbf{Condiciones de Bernstein:} dos bloques $S_i$ y $S_j$, con
+    $L(S)$ el conjunto de variables que \emph{leen} y $E(S)$ el conjunto de
+    variables que \emph{escriben}, pueden ejecutarse en paralelo si y solo si
+    se cumplen las tres condiciones:
+    \[
+        L(S_i) \cap E(S_j) = \emptyset, \qquad
+        E(S_i) \cap L(S_j) = \emptyset, \qquad
+        E(S_i) \cap E(S_j) = \emptyset.
+    \]
+    Si se cumplen, los bloques son \emph{independientes} y van en el mismo
+    \texttt{COBEGIN}; si alguna falla, existe una dependencia y deben colocarse
+    en el orden que esta impone.
+
+    \item \textbf{Grafo de dependencias:} los nodos son las tareas y una arista
+    $A \rightarrow B$ indica que $B$ no puede comenzar hasta que $A$ termine.
+    Los tipos cl\'asicos son RAW (dependencia verdadera: escribir y luego
+    leer), WAR (antidependencia: leer y luego escribir) y WAW (dependencia de
+    salida: escribir y luego escribir). Los nodos sin aristas entre s\'i
+    forman el paralelismo disponible; el camino m\'as largo (camino cr\'itico)
+    fija el tiempo m\'inimo y el ancho del grafo el grado de paralelismo.
+\end{itemize}
+
+%% ------------------------------------------------------------------
+\input{problema1}
+\input{problema2}
+\input{problema3}
+\input{problema4}
+\input{problema5}
+\input{problema6}
+\input{problema7}
+
+%% ------------------------------------------------------------------
+\section{Conclusiones}
+El modelado paralelo se apoya en el an\'alisis de dependencias y no en la
+intuici\'on. Aplicando las condiciones de Bernstein se decide qu\'e bloques son
+independientes y pueden ir dentro de un mismo \texttt{COBEGIN}, mientras que el
+grafo de dependencias muestra el orden obligatorio y el paralelismo real
+disponible. Los ejercicios con datos independientes por elemento (como el
+problema 6) alcanzan un paralelismo casi perfecto, mientras que los que tienen
+una cadena de c\'alculo com\'un (como el problema 4) quedan limitados por su
+camino cr\'itico.
+
+\end{document}

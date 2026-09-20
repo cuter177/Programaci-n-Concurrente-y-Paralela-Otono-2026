@@ -1,0 +1,118 @@
+%% ------------------------------------------------------------------
+%% Problema 6
+%% ------------------------------------------------------------------
+\section{Problema 6. Alumnos aprobados en matem\'aticas}
+
+\subsection*{Enunciado}
+Mostrar el nombre de los alumnos que han aprobado el curso de matem\'aticas.
+Para aprobar, \emph{cada} examen parcial debe tener calificaci\'on mayor o
+igual que 6. Cada estudiante realiz\'o 3 ex\'amenes parciales que valen el 50\%
+de su calificaci\'on y 4 actividades que valen el otro 50\%. De cada estudiante
+se conoce el nombre, la edad y las calificaciones.
+
+\subsection*{An\'alisis del algoritmo}
+Para cada estudiante $i$ se calcula:
+\[
+    pp_i = \frac{p_{1i}+p_{2i}+p_{3i}}{3}, \qquad
+    pa_i = \frac{a_{1i}+a_{2i}+a_{3i}+a_{4i}}{4},
+\]
+\[
+    cf_i = 0.5\,pp_i + 0.5\,pa_i,
+\]
+\[
+    \text{aprobado}_i =
+    (p_{1i}\ge 6) \wedge (p_{2i}\ge 6) \wedge (p_{3i}\ge 6)
+    \wedge (cf_i \ge 6).
+\]
+
+\subsection*{Condiciones de Bernstein}
+El punto clave es que \textbf{los estudiantes son independientes entre s\'i}.
+Para dos estudiantes $i \neq j$:
+\[
+    L(P_i) = \{p_{1i},p_{2i},p_{3i},a_{1i},\dots,a_{4i}\}, \quad
+    E(P_i) = \{pp_i, pa_i, cf_i, \text{aprobado}_i\},
+\]
+y sus conjuntos son disjuntos de los del estudiante $j$. Por lo tanto
+\[
+    L(P_i)\cap E(P_j)=\emptyset,\qquad
+    E(P_i)\cap L(P_j)=\emptyset,\qquad
+    E(P_i)\cap E(P_j)=\emptyset,
+\]
+es decir, todos los estudiantes pueden procesarse en paralelo (paralelismo de
+datos).
+
+Dentro de cada estudiante, las tareas son:
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Tarea & Lee $L$ & Escribe $E$ \\
+\midrule
+T1: \texttt{pp = (p1+p2+p3)/3}              & $\{p_1,p_2,p_3\}$       & $\{pp\}$  \\
+T2: \texttt{pa = (a1+a2+a3+a4)/4}           & $\{a_1,a_2,a_3,a_4\}$   & $\{pa\}$  \\
+T3: \texttt{cf = 0.5*pp + 0.5*pa}           & $\{pp,pa\}$             & $\{cf\}$  \\
+T4: \texttt{aprobado = (p1>=6)y...y(cf>=6)} & $\{p_1,p_2,p_3,cf\}$    & $\{\text{aprobado}\}$ \\
+T5: imprimir \texttt{nombre} si aprobado    & $\{\text{aprobado},\text{nombre}\}$ & $\{\}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{T1 $\parallel$ T2:} escriben variables distintas y leen datos distintos,
+por lo que las tres condiciones de Bernstein se cumplen. \textbf{T3} es el
+punto de uni\'on (depende de $pp$ y $pa$), \textbf{T4} depende de $cf$ y
+\textbf{T5} de \texttt{aprobado}.
+
+\subsection*{Grafo de dependencias}
+Entre estudiantes no existe ninguna arista: el grafo queda formado por $N$
+componentes independientes (paralelismo ideal). Dentro de cada estudiante s\'i
+hay dependencias:
+
+\begin{center}
+\textbf{Entre estudiantes:} sin aristas ($N$ componentes independientes).
+
+\vspace{0.4cm}
+\begin{tikzpicture}[node distance=1.2cm]
+    \node[task] (e1) {Estudiante 1};
+    \node[task, right=1.2cm of e1] (e2) {Estudiante 2};
+    \node[right=1.2cm of e2, font=\large] (dots) {$\cdots$};
+    \node[task, right=1.2cm of dots] (en) {Estudiante N};
+\end{tikzpicture}
+
+\vspace{0.6cm}
+\textbf{Dentro de cada estudiante:}
+
+\vspace{0.4cm}
+\begin{tikzpicture}[node distance=1.2cm and 1.6cm]
+    \node[task] (t1) {T1: pp = (p1+p2+p3)/3};
+    \node[task, below=1.2cm of t1] (t2) {T2: pa = (a1+a2+a3+a4)/4};
+    \node[task, right=2cm of $(t1)!0.5!(t2)$] (t3) {T3: cf = 0.5*pp + 0.5*pa};
+    \node[task, right=1.6cm of t3] (t4) {T4: aprobado = ... y (cf>=6)};
+    \node[task, right=1.6cm of t4] (t5) {T5: imprimir nombre};
+    \draw[dep] (t1) -- (t3);
+    \draw[dep] (t2) -- (t3);
+    \draw[dep] (t3) -- (t4);
+    \draw[dep] (t4) -- (t5);
+\end{tikzpicture}
+\end{center}
+
+\subsection*{Soluci\'on con COBEGIN--COEND}
+\begin{lstlisting}
+COBEGIN                         // un proceso por estudiante
+    para i = 1 .. N
+        COBEGIN
+            pp[i] = (p1[i] + p2[i] + p3[i]) / 3
+            pa[i] = (a1[i] + a2[i] + a3[i] + a4[i]) / 4
+        COEND
+        cf[i] = 0.5*pp[i] + 0.5*pa[i]
+        aprobado[i] = (p1[i]>=6) y (p2[i]>=6) y (p3[i]>=6) y (cf[i]>=6)
+COEND
+
+para i = 1 .. N                 // impresion secuencial
+    si aprobado[i] entonces escribir nombre[i]
+\end{lstlisting}
+
+\noindent
+La impresi\'on es un \textbf{recurso compartido} (secci\'on cr\'itica): si se
+realizara en paralelo habr\'ia que protegerla con un mutex para evitar salida
+entrelazada; por eso se hace de forma secuencial. El c\'alculo, en cambio, es
+totalmente paralelizable porque cada estudiante trabaja sobre sus propias
+variables.

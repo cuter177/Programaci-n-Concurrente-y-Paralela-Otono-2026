@@ -1,0 +1,99 @@
+%% ------------------------------------------------------------------
+%% Problema 4
+%% ------------------------------------------------------------------
+\section{Problema 4. Ra\'ices reales de una ecuaci\'on cuadr\'atica}
+
+\subsection*{Enunciado}
+Determinar las ra\'ices reales de una ecuaci\'on cuadr\'atica
+$ax^2 + bx + c = 0$ mediante la f\'ormula general.
+
+\subsection*{An\'alisis del algoritmo}
+El c\'alculo se descompone de la siguiente forma:
+\[
+    D = b^2 - 4ac, \qquad
+    x_1 = \frac{-b + \sqrt{D}}{2a}, \qquad
+    x_2 = \frac{-b - \sqrt{D}}{2a}.
+\]
+Si $D < 0$ no existen ra\'ices reales y se detiene el c\'alculo.
+
+\subsection*{Condiciones de Bernstein}
+Para cada tarea se identifican las variables que lee ($L$) y las que escribe
+($E$):
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Tarea & Lee $L$ & Escribe $E$ \\
+\midrule
+T1: \texttt{b2 = b*b}          & $\{b\}$            & $\{b2\}$  \\
+T2: \texttt{ac4 = 4*a*c}       & $\{a,c\}$          & $\{ac4\}$ \\
+T3: \texttt{D = b2 - ac4}      & $\{b2,ac4\}$       & $\{D\}$   \\
+T4: \texttt{r = sqrt(D)}       & $\{D\}$            & $\{r\}$   \\
+T5: \texttt{x1 = (-b+r)/(2a)}  & $\{a,b,r\}$        & $\{x1\}$  \\
+T6: \texttt{x2 = (-b-r)/(2a)}  & $\{a,b,r\}$        & $\{x2\}$  \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Verificaci\'on de independencia:
+\begin{itemize}[leftmargin=1.4cm]
+    \item \textbf{T1 $\parallel$ T2:} $L(\text{T1}) \cap E(\text{T2}) =
+    \emptyset$, $E(\text{T1}) \cap L(\text{T2}) = \emptyset$ y
+    $E(\text{T1}) \cap E(\text{T2}) = \emptyset$. Son independientes.
+    \item \textbf{T5 $\parallel$ T6:} comparten \'unicamente \emph{lecturas}
+    de $\{a,b,r\}$ y escriben variables distintas ($x1$ y $x2$), por lo que las
+    tres condiciones se cumplen. Son independientes.
+    \item \textbf{T1, T2 $\rightarrow$ T3 $\rightarrow$ T4:} existen
+    dependencias RAW (T3 lee lo que T1 y T2 escriben; T4 lee lo que T3
+    escribe). Deben respetar ese orden.
+\end{itemize}
+
+\subsection*{Grafo de dependencias}
+El grafo tiene forma de ``diamante'': dos tareas iniciales en paralelo, un
+punto de uni\'on y luego dos tareas finales en paralelo.
+
+\begin{center}
+\begin{tikzpicture}[node distance=1.2cm and 1.8cm]
+    \node[task] (t1) {T1: b2 = b*b};
+    \node[task, below=1.2cm of t1] (t2) {T2: ac4 = 4*a*c};
+    \node[task, right=2cm of $(t1)!0.5!(t2)$] (t3) {T3: D = b2 - ac4};
+    \node[task, right=1.8cm of t3] (t4) {T4: r = sqrt(D)};
+    \node[task, right=1.8cm of t4, yshift=1.4cm] (t5) {T5: x1 = (-b+r)/(2a)};
+    \node[task, right=1.8cm of t4, yshift=-1.4cm] (t6) {T6: x2 = (-b-r)/(2a)};
+    \draw[dep] (t1) -- (t3);
+    \draw[dep] (t2) -- (t3);
+    \draw[dep] (t3) -- (t4);
+    \draw[dep] (t4) -- (t5);
+    \draw[dep] (t4) -- (t6);
+\end{tikzpicture}
+\end{center}
+
+El camino cr\'itico es T1 $\rightarrow$ T3 $\rightarrow$ T4 $\rightarrow$ T5 y
+el paralelismo m\'aximo es 2 (T1 con T2, y T5 con T6).
+
+\subsection*{Soluci\'on con COBEGIN--COEND}
+\begin{lstlisting}
+leer a, b, c
+COBEGIN
+    b2  = b * b
+    ac4 = 4 * a * c
+COEND
+D = b2 - ac4
+si D < 0 entonces
+    escribir "No hay raices reales"
+sino
+    r = sqrt(D)
+    COBEGIN
+        x1 = (-b + r) / (2*a)
+        x2 = (-b - r) / (2*a)
+    COEND
+    escribir x1, x2
+fin si
+\end{lstlisting}
+
+\noindent
+Los dos primeros c\'alculos son independientes entre s\'i, por lo que van en el
+primer \texttt{COBEGIN}. El c\'alculo de $D$ es el punto de uni\'on (join)
+obligatorio. Una vez obtenida $r$, las dos ra\'ices se calculan en paralelo en
+el segundo \texttt{COBEGIN}. La decisi\'on sobre $D < 0$ permanece secuencial
+porque todas las tareas posteriores dependen de ella.

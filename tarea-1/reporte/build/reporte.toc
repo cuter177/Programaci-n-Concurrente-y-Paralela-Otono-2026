@@ -1,0 +1,11 @@
+\xpg@aux {}{spanish}
+\contentsline {section}{\numberline {1}Introducci\'on y objetivo}{2}{section.1}%
+\contentsline {section}{\numberline {2}Marco te\'orico}{2}{section.2}%
+\contentsline {section}{\numberline {3}Problema 1. Ordenamiento lexicogr\'afico}{2}{section.3}%
+\contentsline {section}{\numberline {4}Problema 2. Invertir un arreglo}{2}{section.4}%
+\contentsline {section}{\numberline {5}Problema 3. Intersecci\'on de conjuntos}{2}{section.5}%
+\contentsline {section}{\numberline {6}Problema 4. Ra\'ices reales de una ecuaci\'on cuadr\'atica}{3}{section.6}%
+\contentsline {section}{\numberline {7}Problema 5. M\'aximo de una matriz}{4}{section.7}%
+\contentsline {section}{\numberline {8}Problema 6. Alumnos aprobados en matem\'aticas}{5}{section.8}%
+\contentsline {section}{\numberline {9}Problema 7. Descuento en medicamentos}{6}{section.9}%
+\contentsline {section}{\numberline {10}Conclusiones}{7}{section.10}%
