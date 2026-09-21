@@ -7,3 +7,185 @@
 
 % TODO: modelar la inversi\'on de un arreglo con grafos de dependencia,
 % COBEGIN--COEND y condiciones de Bernstein.
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{geometry}
+\geometry{letterpaper, margin=2.5cm}
+
+% Paquetes de diseño y tablas
+\usepackage{booktabs}
+\usepackage{enumitem}
+
+% Entorno para código y diagramas
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning}
+
+% Configuración de TikZ para los Grafos de Dependencia
+\tikzset{
+    task/.style={
+        rectangle, 
+        draw=black, 
+        fill=gray!10, 
+        thick, 
+        rounded corners=2pt,
+        align=center, 
+        font=\small\sffamily,
+        inner sep=6pt
+    },
+    dep/.style={
+        ->, 
+        >={Stealth[length=6pt]}, 
+        thick, 
+        shorten >=2pt, 
+        shorten <=2pt
+    }
+}
+
+% Configuración para bloques de seudocódigo
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\bfseries\color{blue!80!black},
+    commentstyle=\itshape\color{green!50!black},
+    frame=single,
+    breaklines=true,
+    showstringspaces=false
+}
+
+\begin{document}
+
+% ==================================================================
+% PORTADA INSTITUCIONAL (BUAP)
+% ==================================================================
+\begin{titlepage}
+    \centering
+    {\bfseries\Large BENEM\'ERITA UNIVERSIDAD AUT\'ONOMA DE PUEBLA \par}
+    \vspace{0.3cm}
+    {\large Facultad de Ciencias de la Computaci\'on \par}
+    \vspace{1.5cm}
+    {\large Programaci\'on Concurrente y Paralela \par}
+    \vspace{2.5cm}
+    
+    {\bfseries\LARGE Tarea 1 \par}
+    \vspace{0.4cm}
+    {\Large Modelado de soluciones paralelas \par}
+    \vspace{0.2cm}
+    {\small (Primer parcial) \par}
+    
+    \vfill
+    
+    {\bfseries\large Equipo: \par}
+    \vspace{0.3cm}
+    \begin{tabular}{c}
+        Islas G\'omez Luis Antonio --- 202372860 \\
+        Ram\'irez Candia Alfredo --- 202375947 \\
+        P\'erez Flores Julio C\'esar --- 202247445 \\
+        Navarro Soto Mario Alberto --- 202264602 \\
+    \end{tabular}
+    
+    \vfill
+    
+    {\large Docente: Hilda Castillo Zacatelco \par}
+    \vspace{0.8cm}
+    {\large 20 de septiembre de 2026 \par}
+\end{titlepage}
+
+\newpage
+\tableofcontents
+\newpage
+
+% ==================================================================
+% CONTENIDO DEL DOCUMENTO
+% ==================================================================
+\section{Introducci\'on}
+El procesamiento paralelo permite descomponer problemas computacionales extensos en tareas independientes que se ejecutan simult\'aneamente en m\'ultiples unidades de procesamiento. En esta pr\'actica se formaliza el diseño de una soluci\'on paralela para la inversi\'on del orden de elementos en un arreglo unimensional.
+
+\section{Objetivos}
+\begin{itemize}
+    \item Dise\~nar una soluci\'on paralela y eficiente para la inversi\'on de un arreglo de $N$ elementos.
+    \item Evaluar las condiciones de Bernstein para validar la ausencia de condiciones de carrera en los accesos a memoria.
+    \item Representar la precedencia y concurrencia de la soluci\'on mediante un Grafo de Dependencia.
+    \item Estructurar el modelo concurrente haciendo uso del bloque expl\'icito \texttt{COBEGIN--COEND}.
+\end{itemize}
+
+\section{Marco Te\'orico}
+El modelado de programas concurrentes exige mecanismos formales que garanticen la determinaci\'on de los resultados:
+\begin{itemize}
+    \item \textbf{Condiciones de Bernstein:} Establecen los requisitos de independencia de memoria entre dos tareas $S_i$ y $S_j$. Siendo $L(S)$ el conjunto de variables le\'idas y $E(S)$ el conjunto de variables escritas, se debe cumplir:
+    \[
+        L(S_i) \cap E(S_j) = \emptyset, \quad E(S_i) \cap L(S_j) = \emptyset, \quad E(S_i) \cap E(S_j) = \emptyset.
+    \]
+    \item \textbf{Grafos de Dependencia:} Es un grafo dirigido $G=(V, E)$ donde los v\'ertices $V$ representan las tareas operativas y las aristas dirigidas $E$ expresan dependencias de precedencia temporal.
+    \item \textbf{COBEGIN--COEND:} Constructo sint\'actico para indicar la ejecuci\'on paralela de un conjunto de sentencias, garantizando una barrera de sincronizaci\'on impl\'icita al salir del bloque.
+\end{itemize}
+
+\section{Ejercicio 2: Inversi\'on de un Arreglo}
+
+\subsection{Enunciado}
+Dado un conjunto de n\'umeros en un arreglo $A$ de $N$ elementos, invertir el arreglo; es decir, el primer elemento deber\'a aparecer al final, el \'ultimo en la primera posici\'on, y as\'i sucesivamente.
+
+\subsection{L\'ogica del Algoritmo Paralelo}
+Para invertir el arreglo $A$, definimos $K = \lfloor N/2 \rfloor$ procesos concurrentes $S_0, S_1, \dots, S_{K-1}$. Cada proceso $S_i$ es responsable de intercambiar de manera independiente el elemento de la posici\'on $i$ con su contraparte en la posici\'on $N - 1 - i$:
+\[
+    S_i: \quad \text{intercambiar}(A[i], A[N - 1 - i]) \quad \text{para } 0 \le i < K.
+\]
+Si $N$ es impar, el elemento central $A[K]$ no requiere ning\'un movimiento.
+
+\subsection{Condiciones de Bernstein}
+Analizamos los conjuntos de Lectura ($L$) y Escritura ($E$) para cualquier par de procesos distintos $S_a$ y $S_b$ ($a \neq b$):
+\begin{itemize}
+    \item $L(S_a) = E(S_a) = \{ A[a], A[N - 1 - a] \}$
+    \item $L(S_b) = E(S_b) = \{ A[b], A[N - 1 - b] \}$
+\end{itemize}
+
+Como $a \neq b$, las direcciones de memoria procesadas por $S_a$ y $S_b$ son totalmente disjuntas. Por lo tanto, se cumplen las tres condiciones de Bernstein:
+\[
+    L(S_a) \cap E(S_b) = \emptyset, \qquad 
+    E(S_a) \cap L(S_b) = \emptyset, \qquad 
+    E(S_a) \cap E(S_b) = \emptyset.
+\]
+Al no existir interferencia en memoria, los $K$ procesos pueden ejecutarse simult\'aneamente sin riesgos de condiciones de carrera.
+
+\subsection{Grafo de Dependencia}
+\begin{center}
+\begin{tikzpicture}[node distance=1.2cm and 1.5cm]
+    \node[task] (inicio) {Inicio};
+    
+    \node[task, below left=1.2cm and 2.0cm of inicio] (s0) {$S_0$: Swap($A[0], A[N-1]$)};
+    \node[task, below left=1.2cm and 0.1cm of inicio] (s1) {$S_1$: Swap($A[1], A[N-2]$)};
+    \node[below=1.4cm of inicio, font=\large] (dots) {$\cdots$};
+    \node[task, below right=1.2cm and 2.0cm of inicio] (sk) {$S_{K-1}$: Swap($A[K-1], A[N-K]$)};
+    
+    \node[task, below=2.2cm of dots] (fin) {Fin};
+
+    \draw[dep] (inicio) -- (s0);
+    \draw[dep] (inicio) -- (s1);
+    \draw[dep] (inicio) -- (sk);
+
+    \draw[dep] (s0) -- (fin);
+    \draw[dep] (s1) -- (fin);
+    \draw[dep] (sk) -- (fin);
+\end{tikzpicture}
+\end{center}
+
+\subsection{Implementaci\'on con COBEGIN--COEND}
+\begin{lstlisting}
+// Entrada: Arreglo A[N]
+// K = N / 2
+
+COBEGIN
+    S_0;     // Intercambiar A[0] y A[N-1]
+    S_1;     // Intercambiar A[1] y A[N-2]
+    ...
+    S_K_1;   // Intercambiar A[K-1] y A[N-K]
+COEND
+
+escribir A
+\end{lstlisting}
+
+\section{Conclusi\'on}
+El intercambio simult\'aneo de pares sim\'etricos permite reducir la complejidad temporal de la inversi\'on de un arreglo de $\mathcal{O}(N)$ a $\mathcal{O}(1)$ en presencia de $N/2$ procesadores. El an\'alisis mediante las condiciones de Bernstein valida formalmente que esta descomposici\'on por pares es completamente determinista y libre de condiciones de carrera.
+
+\end{document}
