@@ -8,203 +8,71 @@
 \documentclass[12pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[spanish]{babel}
-\usepackage{geometry}
-\geometry{letterpaper, margin=2.5cm}
-
-% Paquetes de diseño y tablas
-\usepackage{booktabs}
-\usepackage{enumitem}
-
-% Entorno para código y diagramas
-\usepackage{listings}
-\usepackage{xcolor}
+\usepackage{amsmath, amssymb, amsthm}
 \usepackage{tikz}
-\usetikzlibrary{shapes.geometric, arrows.meta, positioning}
-
-% Configuración de TikZ para los Grafos de Dependencia
-\tikzset{
-    task/.style={
-        rectangle, 
-        draw=black, 
-        fill=gray!10, 
-        thick, 
-        rounded corners=2pt,
-        align=center, 
-        font=\small\sffamily,
-        inner sep=6pt
-    },
-    dep/.style={
-        ->, 
-        >={Stealth[length=6pt]}, 
-        thick, 
-        shorten >=2pt, 
-        shorten <=2pt
-    }
-}
-
-% Configuración para bloques de seudocódigo
-\lstset{
-    basicstyle=\ttfamily\small,
-    keywordstyle=\bfseries\color{blue!80!black},
-    commentstyle=\itshape\color{green!50!black},
-    frame=single,
-    breaklines=true,
-    showstringspaces=false
-}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric}
+\usepackage{geometry}
+\geometry{letterpaper, margin=1in}
 
 \begin{document}
 
-% ==================================================================
-% PORTADA INSTITUCIONAL (BUAP)
-% ==================================================================
-\begin{titlepage}
-    \centering
-    {\bfseries\Large BENEM\'ERITA UNIVERSIDAD AUT\'ONOMA DE PUEBLA \par}
-    \vspace{0.3cm}
-    {\large Facultad de Ciencias de la Computaci\'on \par}
-    \vspace{1.5cm}
-    {\large Programaci\'on Concurrente y Paralela \par}
-    \vspace{2.5cm}
-    
-    {\bfseries\LARGE Tarea 1 \par}
-    \vspace{0.4cm}
-    {\Large Modelado de soluciones paralelas \par}
-    \vspace{0.2cm}
-    {\small (Primer parcial) \par}
-    
-    \vfill
-    
-    {\bfseries\large Equipo: \par}
-    \vspace{0.3cm}
-    \begin{tabular}{c}
-        Islas G\'omez Luis Antonio --- 202372860 \\
-        Ram\'irez Candia Alfredo --- 202375947 \\
-        P\'erez Flores Julio C\'esar --- 202247445 \\
-        Navarro Soto Mario Alberto --- 202264602 \\
-    \end{tabular}
-    
-    \vfill
-    
-    {\large Docente: Hilda Castillo Zacatelco \par}
-    \vspace{0.8cm}
-    {\large 20 de septiembre de 2026 \par}
-\end{titlepage}
+\section{Problema 7. Redes de Interconexión y Topologías}
 
-\newpage
-\tableofcontents
-\newpage
+\subsection{Análisis Teórico: Hipercubos de Dimensión $n$}
+Un hipercubo $n$-dimensional ($Q_n$) es un grafo cuyos vértices corresponden a las $2^n$ cadenas binarias de longitud $n$. Dos vértices están conectados por una arista si y solo si sus representaciones binarias difieren exactamente en un solo bit.
 
-% ==================================================================
-% CONTENIDO DEL DOCUMENTO
-% ==================================================================
-\section{Introducci\'on}
-La evaluaci\'on paralela de reglas de negocio permite agilizar los procesos de toma de decisiones en sistemas transaccionales. En este trabajo se presenta el modelado concurrente para calcular el descuento aplicable a una compra de medicamentos, donde m\'ultiples criterios de bonificaci\'on se eval\'uan de manera simult\'anea garantizando que no sean acumulables.
-
-\section{Objetivos}
+\subsubsection{Propiedades de la Topología}
 \begin{itemize}
-    \item Dise\~nar una soluci\'on concurrente para evaluar las reglas de descuento comercial de forma paralela.
-    \item Analizar la independencia de la lectura de variables e indicar las dependencias de datos mediante las Condiciones de Bernstein.
-    \item Representar gr\'aficamente el flujo de ejecuci\'on y las barreras de sincronizaci\'on a trav\'es de un Grafo de Dependencia.
-    \item Implementar la estructura del algoritmo haciendo uso de las sentencias \texttt{COBEGIN--COEND}.
+    \item \textbf{Número de Vértices (Nodos):} $V = 2^n$
+    \item \textbf{Número de Aristas (Enlaces):} $E = n \cdot 2^{n-1}$
+    \item \textbf{Grado de cada Nodo:} $D = n$
+    \item \textbf{Diámetro de la Red:} $\text{Diámetro} = n$
 \end{itemize}
 
-\section{Marco Te\'orico}
-Para validar formalmente el correcto funcionamiento de una soluci\'on concurrente se emplean las siguientes herramientas:
-\begin{itemize}
-    \item \textbf{Condiciones de Bernstein:} Conjunto de tres propiedades que aseguran que la ejecuci\'on concurrente de dos procesos $S_i$ y $S_j$ sea determinista. Considerando los conjuntos de lectura $L(S)$ y escritura $E(S)$, se debe cumplir:
-    \[
-        L(S_i) \cap E(S_j) = \emptyset, \quad E(S_i) \cap L(S_j) = \emptyset, \quad E(S_i) \cap E(S_j) = \emptyset.
-    \]
-    \item \textbf{Grafos de Dependencia:} Representaci\'on mediante nodos (procesos) y aristas dirigidas (dependencias temporales o de datos) que permiten visualizar qu\'e tareas se pueden ejecutar en paralelo y cu\'ales requieren sincronizaci\'on.
-    \item \textbf{COBEGIN--COEND:} Bloque de control utilizado para delimitar la ejecuci\'on paralela de m\'ultiples instrucciones con sincronizaci\'on impl\'icita al terminar el bloque.
-\end{itemize}
+\subsection{Representación Gráfica}
+A continuación se ilustra la estructura de un hipercubo tridimensional ($Q_3$), conformado por $2^3 = 8$ nodos y $12$ enlaces binarios.
 
-\section{Ejercicio 7: Evaluaci\'on de Descuentos en Medicamentos}
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}[scale=2, auto, >=stealth,
+    node distance=2cm,
+    vertex/.style={circle, draw=blue!80, fill=blue!10, thick, inner sep=2pt, minimum size=8mm}]
 
-\subsection{Enunciado}
-Suponga que se requiere conocer si una persona podr\'a obtener un descuento en la compra de sus medicamentos. Una persona puede obtener un descuento del 20\% sobre su compra total en la compra de al menos \$1000.00, o un descuento del 30\% en la compra de \$1500.00, o un descuento del 10\% en la compra de al menos un anti\'acido de cualquier costo. Los descuentos no son acumulables en la misma compra.
+    % Nodos del cubo frontal
+    \node[vertex] (000) at (0,0) {000};
+    \node[vertex] (100) at (2,0) {100};
+    \node[vertex] (110) at (2,2) {110};
+    \node[vertex] (010) at (0,2) {010};
 
-\subsection{L\'ogica del Algoritmo Paralelo}
-El problema se resuelve estructurando el algoritmo en dos etapas consecutivas:
-\begin{enumerate}
-    \item \textbf{Evaluaci\'on Concurrente ($S_0, S_1, S_2$):} Tres procesos eval\'uan en paralelo cada regla de descuento independientemente, guardando el porcentaje obtenido en las variables $d_0, d_1, d_2$:
-    \begin{itemize}
-        \item $S_0$: Eval\'ua si $\text{total} \ge 1000.00$ para asignar un 20\% ($d_0$).
-        \item $S_1$: Eval\'ua si $\text{total} == 1500.00$ para asignar un 30\% ($d_1$).
-        \item $S_2$: Eval\'ua si la compra incluye un anti\'acido ($\text{tiene\_antiacido}$) para asignar un 10\% ($d_2$).
-    \end{itemize}
-    \item \textbf{Consolidaci\'on Secuencial ($S_{\text{final}}$):} Un proceso final toma el mayor de los descuentos calculados para garantizar que no sean acumulables:
-    \[
-        d_{\text{final}} = \max(d_0, d_1, d_2).
-    \]
-\end{enumerate}
+    % Nodos del cubo trasero
+    \node[vertex] (001) at (0.8,0.8) {001};
+    \node[vertex] (101) at (2.8,0.8) {101};
+    \node[vertex] (111) at (2.8,2.8) {111};
+    \node[vertex] (011) at (0.8,2.8) {011};
 
-\subsection{Condiciones de Bernstein}
-Analizamos los conjuntos de Lectura ($L$) y Escritura ($E$) para cada proceso:
-\begin{center}
-\begin{tabular}{lll}
-\toprule
-Proceso & Lectura ($L$) & Escritura ($E$) \\
-\midrule
-$S_0$ (Regla 20\%) & $\{ \text{total} \}$ & $\{ d_0 \}$ \\
-$S_1$ (Regla 30\%) & $\{ \text{total} \}$ & $\{ d_1 \}$ \\
-$S_2$ (Regla 10\%) & $\{ \text{tiene\_antiacido} \}$ & $\{ d_2 \}$ \\
-$S_{\text{final}}$ & $\{ d_0, d_1, d_2 \}$ & $\{ d_{\text{final}} \}$ \\
-\bottomrule
-\end{tabular}
-\end{center}
+    % Aristas del cubo frontal
+    \draw[thick] (000) -- (100);
+    \draw[thick] (100) -- (110);
+    \draw[thick] (110) -- (010);
+    \draw[thick] (010) -- (000);
 
-\begin{itemize}
-    \item \textbf{Independencia entre las Evaluaciones ($S_0 \parallel S_1 \parallel S_2$):}
-    Aunque $S_0$ y $S_1$ comparten la lectura de la variable \texttt{total}, la intersecci\'on de lectura compartida $L(S_0) \cap L(S_1) \neq \emptyset$ est\'a permitida. Dado que $E(S_i) \cap E(S_j) = \emptyset$ y $L(S_i) \cap E(S_j) = \emptyset$ para todo $i \neq j$, las tres evaluaciones son mutuamente independientes.
-    \item \textbf{Dependencia con el Proceso Final ($S_i \rightarrow S_{\text{final}}$):}
-    Existe una dependencia de datos (RAW) expresada por:
-    \[
-        E(S_i) \cap L(S_{\text{final}}) = \{ d_i \} \neq \emptyset.
-    \]
-    Por lo tanto, $S_{\text{final}}$ debe ejecutarse estrictamente despu\'es de que todos los procesos paralelos hayan concluido.
-\end{itemize}
+    % Aristas del cubo trasero
+    \draw[thick] (001) -- (101);
+    \draw[thick] (101) -- (111);
+    \draw[thick] (111) -- (011);
+    \draw[thick] (011) -- (001);
 
-\subsection{Grafo de Dependencia}
-\begin{center}
-\begin{tikzpicture}[node distance=1.2cm and 1.8cm]
-    \node[task] (inicio) {Inicio};
-    
-    \node[task, below left=1.2cm and 1.5cm of inicio] (s0) {$S_0$: Evaluar 20\% ($d_0$)};
-    \node[task, below=1.2cm of inicio] (s1) {$S_1$: Evaluar 30\% ($d_1$)};
-    \node[task, below right=1.2cm and 1.5cm of inicio] (s2) {$S_2$: Evaluar 10\% ($d_2$)};
-    
-    \node[task, below=2.2cm of s1] (sfinal) {$S_{\text{final}}$: $d_{\text{final}} = \max(d_0, d_1, d_2)$};
-    \node[task, below=1.0cm of sfinal] (fin) {Fin};
+    % Aristas de interconexión (frente a atrás)
+    \draw[thick, dashed, red!70!black] (000) -- (001);
+    \draw[thick, dashed, red!70!black] (100) -- (101);
+    \draw[thick, dashed, red!70!black] (110) -- (111);
+    \draw[thick, dashed, red!70!black] (010) -- (011);
 
-    \draw[dep] (inicio) -- (s0);
-    \draw[dep] (inicio) -- (s1);
-    \draw[dep] (inicio) -- (s2);
-
-    \draw[dep] (s0) -- (sfinal);
-    \draw[dep] (s1) -- (sfinal);
-    \draw[dep] (s2) -- (sfinal);
-
-    \draw[dep] (sfinal) -- (fin);
 \end{tikzpicture}
-\end{center}
+\caption{Topología de Hipercubo 3D ($Q_3$). Las líneas punteadas rojas unen nodos que difieren en el tercer bit.}
+\end{figure}
 
-\subsection{Implementaci\'on con COBEGIN--COEND}
-\begin{lstlisting}
-// Entrada: total, tiene_antiacido
-// Salida: d_final
-
-COBEGIN
-    S_0; // d0 = (total >= 1000.0) ? 0.20 : 0.0
-    S_1; // d1 = (total == 1500.0) ? 0.30 : 0.0
-    S_2; // d2 = (tiene_antiacido) ? 0.10 : 0.0
-COEND
-
-S_final; // d_final = max(d0, d1, d2)
-escribir d_final
-\end{lstlisting}
-
-\section{Conclusi\'on}
-La evaluaci\'on concurrente de reglas de negocio permite aislar la l\'ogica condicional de cada criterio sin introducir interferencia en memoria. La aplicaci\'on de las Condiciones de Bernstein confirma que la fase de selecci\'on del m\'aximo beneficio requiere una barrera expl\'icita de sincronizaci\'on provista por el cierre \texttt{COEND}, garantizando una resoluci\'on correcta y no acumulable del descuento final.
+\subsection{Conclusiones}
+La topología en hipercubo ofrece un excelente compromiso entre el diámetro de la red y el grado de los nodos, permitiendo un enrutamiento eficiente de complejidad $\mathcal{O}(n)$ en algoritmos de paso de mensajes paralelos.
 
 \end{document}
