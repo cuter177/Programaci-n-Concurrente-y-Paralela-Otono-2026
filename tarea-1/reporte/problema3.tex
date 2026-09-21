@@ -3,6 +3,168 @@
 %% ------------------------------------------------------------------
 \section{Problema 3. Intersecci\'on de conjuntos}
 
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,calc}
+
+\definecolor{codegray}{gray}{0.95}
+\definecolor{codeblue}{rgb}{0.1,0.1,0.6}
+\definecolor{codegreen}{rgb}{0.0,0.45,0.0}
+
+\tikzset{
+    task/.style={
+        rectangle, rounded corners, draw=codeblue!60, fill=blue!5,
+        align=center, font=\small\ttfamily, inner sep=5pt,
+        minimum height=0.8cm
+    },
+    wide/.style={
+        task, text width=2.8cm, inner sep=3pt, font=\scriptsize\ttfamily
+    },
+    dep/.style={-{Latex[length=2mm]}, thick, draw=codeblue!70}
+}
+
+\lstset{
+    backgroundcolor=\color{codegray},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{codeblue}\bfseries,
+    commentstyle=\color{codegreen}\itshape,
+    stringstyle=\color{red!70!black},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    numbersep=8pt,
+    breaklines=true,
+    showstringspaces=false,
+    frame=single,
+    rulecolor=\color{gray!50},
+    tabsize=4,
+    extendedchars=true
+}
+
+\title{Problema 3: Intersecci\'on de Conjuntos de Cadenas}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Problema 3. Intersecci\'on de conjuntos de cadenas}
+
+\subsection*{Enunciado}
+Sean dos conjuntos de cadenas (sin duplicados internos):
+\[
+  A = \{a_1,a_2,\dots,a_n\}, \quad B = \{b_1,b_2,\dots,b_m\}
+\]
+Determinar:
+\[
+  C = A \cap B = \{x \mid x \in A \land x \in B\}.
+\]
+Soluci\'on secuencial cl\'asica con costo $O(n \cdot m \cdot L)$, donde $L$ es el costo de comparar dos cadenas.
+
+\subsection*{An\'alisis del algoritmo}
+Para evitar conflictos de escritura sobre $C$ el c\'alculo se descompone de la siguiente forma:
+\[
+  M[i,j] = (A[i]==B[j]), \qquad
+  P[i] = \bigvee_{j=1}^{m} M[i,j], \qquad
+  C = \{a_i \mid P[i]=1\}.
+\]
+\begin{enumerate}[leftmargin=1.4cm]
+  \item \textbf{Comparaci\'on:} $T_{i,j}$ calcula $M[i,j]=1$ si $a_i=b_j$, $0$ en otro caso, con $1 \le i \le n$, $1 \le j \le m$.
+  \item \textbf{Reducci\'on por filas:} $S_i$ calcula $P[i] \in \{0,1\}$. $P[i]=1$ ssi $a_i \in B$.
+  \item \textbf{Compactaci\'on:} construcci\'on de $C$ a partir de $P$.
+\end{enumerate}
+
+\subsection*{Condiciones de Bernstein}
+Para cada tarea se identifican las variables que lee ($L$) y las que escribe ($E$):
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Tarea & Lee $L$ & Escribe $E$ \\
+\midrule
+T$_{i,j}$: \texttt{M[i,j] = (A[i]==B[j])} & $\{A[i],B[j]\}$ & $\{M[i,j]\}$ \\
+S$_{i}$: \texttt{P[i] = OR(M[i,:])} & $\{M[i,1..m]\}$ & $\{P[i]\}$ \\
+JOIN: \texttt{C = \{a\_i | P[i]=1\}} & $\{P,A\}$ & $\{C\}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Verificaci\'on de independencia:
+\begin{itemize}[leftmargin=1.4cm]
+  \item \textbf{T$_{i,j}$ $\parallel$ T$_{i',j'}$:} $L(T_{i,j}) \cap E(T_{i',j'}) = \emptyset$, $E(T_{i,j}) \cap L(T_{i',j'}) = \emptyset$ y $E(T_{i,j}) \cap E(T_{i',j'}) = \emptyset$. Son independientes.
+  \item \textbf{S$_{i}$ $\parallel$ S$_{k}$:} comparten \'unicamente lecturas de $M$ por filas distintas y escriben variables distintas ($P[i]$ y $P[k]$), por lo que las tres condiciones se cumplen. Son independientes.
+  \item \textbf{Fase 1 $\rightarrow$ Fase 2 $\rightarrow$ JOIN:} existen dependencias RAW (Fase 2 lee lo que Fase 1 escribe; JOIN lee lo que Fase 2 escribe). Deben respetar ese orden. Escritura directa $C[k++] \gets a_i$ violar\'ia Bernstein porque el \'indice $k$ ser\'ia escrito por todos.
+\end{itemize}
+
+\subsection*{Grafo de dependencias}
+El grafo tiene tres niveles: $n\cdot m$ nodos iniciales en paralelo, una capa de reducci\'on y un punto de uni\'on final.
+
+\begin{center}
+\begin{tikzpicture}[node distance=0.7cm and 0.8cm]
+  \node[task] (t11) {$T_{1,1}$};
+  \node[task, right=of t11] (t12) {$T_{1,2}$};
+  \node[task, right=of t12] (t1m) {$T_{1,m}$};
+  \node[task, below=of t11] (t21) {$T_{2,1}$};
+  \node[task, below=of t12] (t22) {$T_{2,2}$};
+  \node[task, below=of t1m] (t2m) {$T_{2,m}$};
+  \node[task, below=of t21] (tn1) {$T_{n,1}$};
+  \node[task, below=of t22] (tn2) {$T_{n,2}$};
+  \node[task, below=of t2m] (tnm) {$T_{n,m}$};
+
+  \node[wide, below=of tn2, yshift=-0.4cm] (s2) {S2: P[2]};
+  \node[wide, left=of s2] (s1) {S1: P[1]};
+  \node[wide, right=of s2] (sn) {Sn: P[n]};
+  \node[wide, below=of s2, yshift=-0.4cm] (c) {JOIN C};
+
+  \draw[dep] (t11) -- (s1);
+  \draw[dep] (t12) -- (s1);
+  \draw[dep] (t1m) -- (s1);
+  \draw[dep] (t21) -- (s2);
+  \draw[dep] (t22) -- (s2);
+  \draw[dep] (t2m) -- (s2);
+  \draw[dep] (tn1) -- (sn);
+  \draw[dep] (tn2) -- (sn);
+  \draw[dep] (tnm) -- (sn);
+  \draw[dep] (s1) -- (c);
+  \draw[dep] (s2) -- (c);
+  \draw[dep] (sn) -- (c);
+\end{tikzpicture}
+\end{center}
+
+El camino cr\'itico es $T_{i,j} \rightarrow S_i \rightarrow \text{JOIN}$ y el paralelismo m\'aximo es $n \cdot m$ en la Fase 1 ($T_{i,j}$ entre s\'i, y $S_i$ entre s\'i).
+
+\subsection*{Soluci\'on con COBEGIN--COEND}
+\begin{lstlisting}
+leer A[1..n], B[1..m]
+COBEGIN
+    // Fase 1: comparaciones T_i,j en paralelo
+    M[i,j] = (A[i] == B[j])
+COEND
+COBEGIN
+    // Fase 2: reduccion OR por filas S_i en paralelo
+    P[i] = OR_j M[i,j]
+COEND
+C = vacio
+para i = 1..n hacer
+    si P[i] == 1 entonces
+        C = C union {A[i]}
+    fin si
+fin para
+escribir C
+\end{lstlisting}
+
+\noindent
+Las comparaciones $T_{i,j}$ son independientes entre s\'i, por lo que van en el primer \texttt{COBEGIN}. La reducci\'on $S_i$ es el punto de uni\'on por filas y va en el segundo \texttt{COBEGIN}. La compactaci\'on de $C$ permanece secuencial porque todas las escrituras depender\'ian del mismo \'indice $k$. El c\'alculo es correctamente sincronizado por las dos barreras \texttt{COEND}. Tiempo secuencial $T_1 = O(n \cdot m \cdot L)$ y tiempo paralelo $T_p = O(\frac{nmL}{p}+\frac{nm}{p}+n)$.
+
+\end{document}
+
 \emph{Pendiente por desarrollar.}
 
 % TODO: modelar el c\'alculo de la intersecci\'on de dos conjuntos de cadenas
