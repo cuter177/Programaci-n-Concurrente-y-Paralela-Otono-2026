@@ -1,18 +1,20 @@
 # Fdb version 4
-["xdvipdfmx"] 1789937794.62441 "build/reporte.xdv" "build/reporte.pdf" "build/reporte" 1789937794.7594 0
-  "build/reporte.xdv" 1789937794.57551 169576 c94d8e0e0db162b2745cb8f2e3ce8489 "xelatex"
+["xdvipdfmx"] 1790044054.14418 "build/reporte.xdv" "build/reporte.pdf" "build/reporte" 1790044054.29708 0
+  "build/reporte.xdv" 1790044054.09689 336008 f5c267a13e25e4c5ce94bafcb21c38c2 "xelatex"
   (generated)
   "build/reporte.pdf"
   (rewritten before read)
-["xelatex"] 1789937793.77762 "reporte.tex" "build/reporte.xdv" "reporte" 1789937794.75787 0
+["xelatex"] 1790044053.26981 "reporte.tex" "build/reporte.xdv" "reporte" 1790044054.2956 0
   "/usr/share/texmf-dist/fonts/map/fontname/texfonts.map" 1775415801 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texmf-dist/fonts/tfm/adobe/zapfding/pzdr.tfm" 1775415801 1528 f853c4d1b4e0550255e02831fdc8496f ""
   "/usr/share/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex7.tfm" 1775415801 1004 54797486969f23fa377b128694d548df ""
   "/usr/share/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex8.tfm" 1775415801 988 bdf658c3bfc2d96d3c8b02cfc1c94c20 ""
   "/usr/share/texmf-dist/fonts/tfm/public/cm/cmex10.tfm" 1775415801 992 662f679a0b3d2d53c1b94050fdaa3f50 ""
+  "/usr/share/texmf-dist/fonts/tfm/public/cm/cmmi10.tfm" 1775415801 1528 abec98dbc43e172678c11b3b9031252a ""
   "/usr/share/texmf-dist/fonts/tfm/public/cm/cmmi12.tfm" 1775415801 1524 4414a8315f39513458b80dfc63bff03a ""
   "/usr/share/texmf-dist/fonts/tfm/public/cm/cmmi6.tfm" 1775415801 1512 f21f83efb36853c0b70002322c1ab3ad ""
   "/usr/share/texmf-dist/fonts/tfm/public/cm/cmmi8.tfm" 1775415801 1520 eccf95517727cb11801f4f1aee3a21b4 ""
+  "/usr/share/texmf-dist/fonts/tfm/public/cm/cmr10.tfm" 1775415801 1296 45809c5a464d5f32c8f98ba97c1bb47f ""
   "/usr/share/texmf-dist/fonts/tfm/public/cm/cmr12.tfm" 1775415801 1288 655e228510b4c2a1abe905c368440826 ""
   "/usr/share/texmf-dist/fonts/tfm/public/cm/cmr6.tfm" 1775415801 1300 b62933e007d01cfd073f79b963c01526 ""
   "/usr/share/texmf-dist/fonts/tfm/public/cm/cmr8.tfm" 1775415801 1292 21c1c5bfeaebccffdb478fd231a0997d ""
@@ -146,17 +148,17 @@
   "/usr/share/texmf-dist/tex/latex/xcolor/xcolor.sty" 1775415801 55384 b454dec21c2d9f45ec0b793f0995b992 ""
   "/usr/share/texmf-dist/web2c/texmf.cnf" 1775415801 43569 fd570f2fa160877d211e859f687312ba ""
   "/var/lib/texmf/web2c/xetex/xelatex.fmt" 1780944279 4859953 fd861083c35add112ba8f52c9a3258f9 ""
-  "build/reporte.aux" 1789937794.57451 1539 0636345541f5e1ca793de6d12020d132 "xelatex"
-  "build/reporte.out" 1789937794.57551 2159 9a819905d0d5a1fa4fe3f61cc2f75f25 "xelatex"
-  "build/reporte.toc" 1789937794.57551 920 56d2b8f2f52a58ea9623b4f1d1fec04a "xelatex"
-  "problema1.tex" 1789920913.63313 397 c459e0bc223c30d3e8d0a409388637d2 ""
-  "problema2.tex" 1789920914.06114 349 6353eee42c20d8dd08bcbe54ee3677e2 ""
-  "problema3.tex" 1789920914.48214 390 29faa44d5f73b020aeb47bf1e8de0185 ""
+  "build/reporte.aux" 1790044054.09589 1549 79ec6656682a7a70cfedc6a716cfdccc "xelatex"
+  "build/reporte.out" 1790044054.09589 2185 c65e6837669bd115097c26a0fe8802ab "xelatex"
+  "build/reporte.toc" 1790044054.09689 929 4d49d94668ecfc54ef4e1c16212369ba "xelatex"
+  "problema1.tex" 1790037632.16842 3719 5440b32871a4767eb1299267693a7e8f ""
+  "problema2.tex" 1790037666.36863 3618 d4b4a73a7354cca121af3013184c8f19 ""
+  "problema3.tex" 1790037379.56408 4667 55596410922f7c305459267be1d0b769 ""
   "problema4.tex" 1789937791.32049 3607 9ce6fc9867c4dcb578e0f961253be4da ""
   "problema5.tex" 1789937761.02231 4740 f56e123933968d80643ac6de0c60f6f3 ""
   "problema6.tex" 1789937791.32335 4404 0f00dbdc500469e259a391f921b7a84d ""
-  "problema7.tex" 1789920915.36015 388 d8879707c28a8b61cce12446319155c8 ""
-  "reporte.tex" 1789937784.87446 5602 b3e82becfc704ef9846b594de9f9d11d ""
+  "problema7.tex" 1790037644.34349 3849 a57f478e7c645b2b6838efa513d26430 ""
+  "reporte.tex" 1790044049.09432 5568 1b0fd265c7576a8d276da19b848d004a ""
   (generated)
   "build/reporte.aux"
   "build/reporte.log"

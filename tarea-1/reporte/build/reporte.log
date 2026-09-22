@@ -1,6 +1,7 @@
-This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.6.8)  20 SEP 2026 14:56
+This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.6.8)  21 SEP 2026 20:27
 entering extended mode
  restricted \write18 enabled.
+ file:line:error style messages enabled.
  %&-line parsing enabled.
 **reporte.tex
 (./reporte.tex
@@ -846,14 +847,14 @@ Package hyperref Info: Link coloring OFF on input line 59.
 \openout5 = `reporte.toc'.
 
  [1]
-Overfull \hbox (4.56363pt too wide) in paragraph at lines 104--110
+Overfull \hbox (4.56363pt too wide) in paragraph at lines 103--109
 \TU/LiberationSerif(0)/m/n/12 dos, empleando tres herramientas de análisis: los
  \TU/LiberationSerif(0)/b/n/12 grafos de dependencia\TU/LiberationSerif(0)/m/n/
 12 , las sentencias \TU/LiberationSerif(0)/b/n/12 COBEGIN–
  []
 
-(./problema1.tex) (./problema2.tex) (./problema3.tex) (./problema4.tex [2]
-[3]) (./problema5.tex [4]
+(./problema1.tex [2] [3]) (./problema2.tex [4]) (./problema3.tex [5] [6])
+(./problema4.tex [7] [8]) (./problema5.tex [9]
 Overfull \hbox (0.27983pt too wide) in paragraph at lines 23--26
 []\TU/LiberationSerif(0)/b/n/12 Fase de Reducción Secuencial ($\OML/cmm/m/it/12
  S[]$\TU/LiberationSerif(0)/b/n/12 ): \TU/LiberationSerif(0)/m/n/12 Un proceso 
@@ -867,21 +868,22 @@ iones, todos los procesos $\OMS/cmsy/m/n/12 f\OML/cmm/m/it/12 S[]; S[]; [] ; S[
 ]\OMS/cmsy/m/n/12 g$
  []
 
-[5]) (./problema6.tex [6] [7]) (./problema7.tex) [8] (build/reporte.aux)
+[10]) (./problema6.tex [11] [12]) (./problema7.tex [13] [14]) [15]
+(build/reporte.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
  ***********
 Package rerunfilecheck Info: File `reporte.out' has not changed.
-(rerunfilecheck)             Checksum: 9A819905D0D5A1FA4FE3F61CC2F75F25;2159.
+(rerunfilecheck)             Checksum: C65E6837669BD115097C26A0FE8802AB;2185.
  ) 
 Here is how much of TeX's memory you used:
- 25143 strings out of 470137
- 512214 string characters out of 5478428
- 1049168 words of memory out of 5000000
- 53308 multiletter control sequences out of 15000+600000
- 633207 words of font info for 102 fonts, out of 8000000 for 9000
+ 25287 strings out of 470137
+ 514366 string characters out of 5478428
+ 1052196 words of memory out of 5000000
+ 53452 multiletter control sequences out of 15000+600000
+ 634347 words of font info for 106 fonts, out of 8000000 for 9000
  40 hyphenation exceptions out of 8191
- 102i,11n,107p,444b,1054s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 102i,11n,107p,569b,1752s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on build/reporte.xdv (9 pages, 169576 bytes).
+Output written on build/reporte.xdv (16 pages, 336008 bytes).

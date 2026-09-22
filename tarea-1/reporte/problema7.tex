@@ -3,76 +3,110 @@
 %% ------------------------------------------------------------------
 \section{Problema 7. Descuento en medicamentos}
 
-% TODO: modelar la determinaci\'on del descuento en la compra de medicamentos
-% con grafos de dependencia, COBEGIN--COEND y condiciones de Bernstein.
-\documentclass[12pt]{article}
-\usepackage[utf8]{inputenc}
-\usepackage[spanish]{babel}
-\usepackage{amsmath, amssymb, amsthm}
-\usepackage{tikz}
-\usetikzlibrary{arrows.meta, positioning, shapes.geometric}
-\usepackage{geometry}
-\geometry{letterpaper, margin=1in}
+\subsection*{Enunciado}
+Se requiere conocer si una persona puede obtener un descuento en la compra de
+sus medicamentos. Una persona puede obtener un descuento del 20\% sobre su
+compra total en la compra de al menos \$1000.00, o un descuento del 30\% en la
+compra de \$1500, o un descuento del 10\% en la compra de al menos un
+anti\'acido de cualquier costo. Los descuentos no son acumulables en la misma
+compra.
 
-\begin{document}
+\subsection*{An\'alisis del algoritmo}
+Sean $T$ el total de la compra y $q$ el n\'umero de anti\'acidos comprados. Las
+tres condiciones se eval\'uan de forma independiente:
+\[
+    c_{20} = (T \ge 1000), \qquad
+    c_{30} = (T \ge 1500), \qquad
+    c_{10} = (q \ge 1).
+\]
+Como los descuentos no son acumulables, se aplica uno solo, eligiendo el de
+mayor beneficio:
+\[
+    d =
+    \begin{cases}
+        30\% & c_{30} = 1, \\
+        20\% & c_{30} = 0 \wedge c_{20} = 1, \\
+        10\% & c_{30} = 0 \wedge c_{20} = 0 \wedge c_{10} = 1, \\
+        0\%  & \text{en otro caso}.
+    \end{cases}
+\]
+El total a pagar es $T - d \cdot T$.
 
-\section{Problema 7. Redes de Interconexión y Topologías}
+\subsection*{Condiciones de Bernstein}
+Para cada tarea se identifican las variables que lee ($L$) y las que escribe
+($E$):
 
-\subsection{Análisis Teórico: Hipercubos de Dimensión $n$}
-Un hipercubo $n$-dimensional ($Q_n$) es un grafo cuyos vértices corresponden a las $2^n$ cadenas binarias de longitud $n$. Dos vértices están conectados por una arista si y solo si sus representaciones binarias difieren exactamente en un solo bit.
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Tarea & Lee $L$ & Escribe $E$ \\
+\midrule
+T1: \texttt{c20 = (T >= 1000)}          & $\{T\}$           & $\{c_{20}\}$ \\
+T2: \texttt{c30 = (T >= 1500)}          & $\{T\}$           & $\{c_{30}\}$ \\
+T3: \texttt{c10 = (q >= 1)}             & $\{q\}$           & $\{c_{10}\}$ \\
+T4: \texttt{d = seleccion(c20,c30,c10)} & $\{c_{20},c_{30},c_{10}\}$ & $\{d\}$ \\
+T5: \texttt{total = T - d*T}            & $\{T,d\}$         & $\{total\}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
 
-\subsubsection{Propiedades de la Topología}
-\begin{itemize}
-    \item \textbf{Número de Vértices (Nodos):} $V = 2^n$
-    \item \textbf{Número de Aristas (Enlaces):} $E = n \cdot 2^{n-1}$
-    \item \textbf{Grado de cada Nodo:} $D = n$
-    \item \textbf{Diámetro de la Red:} $\text{Diámetro} = n$
+Verificaci\'on de independencia:
+\begin{itemize}[leftmargin=1.4cm]
+    \item \textbf{T1 $\parallel$ T2 $\parallel$ T3:} comparten \'unicamente
+    \emph{lecturas} ($T$ o $q$) y escriben variables distintas ($c_{20}$,
+    $c_{30}$ y $c_{10}$), por lo que las tres condiciones se cumplen. Son
+    independientes.
+    \item \textbf{T1, T2, T3 $\rightarrow$ T4 $\rightarrow$ T5:} existen
+    dependencias RAW (T4 lee lo que T1, T2 y T3 escriben; T5 lee lo que T4
+    escribe). Deben respetar ese orden.
 \end{itemize}
 
-\subsection{Representación Gráfica}
-A continuación se ilustra la estructura de un hipercubo tridimensional ($Q_3$), conformado por $2^3 = 8$ nodos y $12$ enlaces binarios.
+\subsection*{Grafo de dependencias}
+Las tres condiciones se eval\'uan en paralelo y convergen en la selecci\'on del
+descuento, que es el punto de uni\'on obligatorio.
 
-\begin{figure}[h!]
-\centering
-\begin{tikzpicture}[scale=2, auto, >=stealth,
-    node distance=2cm,
-    vertex/.style={circle, draw=blue!80, fill=blue!10, thick, inner sep=2pt, minimum size=8mm}]
+\begin{center}
+\begin{tikzpicture}[node distance=1.0cm and 1.3cm]
+    \node[wide] (t1) {T1: c20 = (T>=1000)};
+    \node[wide, below=1.0cm of t1] (t2) {T2: c30 = (T>=1500)};
+    \node[wide, below=1.0cm of t2] (t3) {T3: c10 = (q>=1)};
+    \node[wide, right=1.3cm of t2] (t4) {T4: d = seleccion(...)};
+    \node[wide, right=1.3cm of t4] (t5) {T5: total = T - d*T};
 
-    % Nodos del cubo frontal
-    \node[vertex] (000) at (0,0) {000};
-    \node[vertex] (100) at (2,0) {100};
-    \node[vertex] (110) at (2,2) {110};
-    \node[vertex] (010) at (0,2) {010};
-
-    % Nodos del cubo trasero
-    \node[vertex] (001) at (0.8,0.8) {001};
-    \node[vertex] (101) at (2.8,0.8) {101};
-    \node[vertex] (111) at (2.8,2.8) {111};
-    \node[vertex] (011) at (0.8,2.8) {011};
-
-    % Aristas del cubo frontal
-    \draw[thick] (000) -- (100);
-    \draw[thick] (100) -- (110);
-    \draw[thick] (110) -- (010);
-    \draw[thick] (010) -- (000);
-
-    % Aristas del cubo trasero
-    \draw[thick] (001) -- (101);
-    \draw[thick] (101) -- (111);
-    \draw[thick] (111) -- (011);
-    \draw[thick] (011) -- (001);
-
-    % Aristas de interconexión (frente a atrás)
-    \draw[thick, dashed, red!70!black] (000) -- (001);
-    \draw[thick, dashed, red!70!black] (100) -- (101);
-    \draw[thick, dashed, red!70!black] (110) -- (111);
-    \draw[thick, dashed, red!70!black] (010) -- (011);
-
+    \draw[dep] (t1) -- (t4);
+    \draw[dep] (t2) -- (t4);
+    \draw[dep] (t3) -- (t4);
+    \draw[dep] (t4) -- (t5);
 \end{tikzpicture}
-\caption{Topología de Hipercubo 3D ($Q_3$). Las líneas punteadas rojas unen nodos que difieren en el tercer bit.}
-\end{figure}
+\end{center}
 
-\subsection{Conclusiones}
-La topología en hipercubo ofrece un excelente compromiso entre el diámetro de la red y el grado de los nodos, permitiendo un enrutamiento eficiente de complejidad $\mathcal{O}(n)$ en algoritmos de paso de mensajes paralelos.
+El camino cr\'itico es T1 $\rightarrow$ T4 $\rightarrow$ T5 y el paralelismo
+m\'aximo es 3 (T1, T2 y T3).
 
-\end{document}
+\subsection*{Soluci\'on con COBEGIN--COEND}
+\begin{lstlisting}
+leer T, q
+COBEGIN
+    c20 = (T >= 1000)
+    c30 = (T >= 1500)
+    c10 = (q >= 1)
+COEND
+si c30 = 1 entonces
+    d = 0.30
+sino si c20 = 1 entonces
+    d = 0.20
+sino si c10 = 1 entonces
+    d = 0.10
+sino
+    d = 0
+fin si
+total = T - d * T
+escribir total
+\end{lstlisting}
+
+\noindent
+Las tres condiciones se calculan en paralelo porque s\'olo leen datos y
+escriben variables distintas, por lo que van en el mismo \texttt{COBEGIN}. La
+selecci\'on del descuento es el punto de uni\'on (join) obligatorio y permanece
+secuencial, ya que depende de los tres resultados y los descuentos no son
+acumulables.

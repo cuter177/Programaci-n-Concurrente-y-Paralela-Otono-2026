@@ -1,116 +1,97 @@
 %% ------------------------------------------------------------------
 %% Problema 2
 %% ------------------------------------------------------------------
-\section{Problema 2. Invertir un arreglo}
+\section{Problema 2. Inversi\'on de un arreglo}
 
-\emph{Pendiente por desarrollar.}
+\subsection*{Enunciado}
+Dado un conjunto de n\'umeros en un arreglo, invertir el arreglo, es decir, el
+primer elemento deber\'a aparecer al final, el \'ultimo al inicio, y as\'i
+sucesivamente.
 
-% TODO: modelar la inversi\'on de un arreglo con grafos de dependencia,
-% COBEGIN--COEND y condiciones de Bernstein.
-\documentclass[12pt]{article}
-\usepackage[utf8]{inputenc}
-\usepackage[spanish]{babel}
-\usepackage{amsmath, amssymb, amsthm}
-\usepackage{listings}
-\usepackage{xcolor}
-\usepackage{geometry}
-\geometry{letterpaper, margin=1in}
+\subsection*{An\'alisis del algoritmo}
+Sea $A$ un arreglo de $N$ elementos indexado de $0$ a $N-1$. La inversi\'on
+intercambia cada elemento con su sim\'etrico respecto al centro:
+\[
+    \text{swap}(A[i], A[N-1-i]) \quad \text{para } i = 0, 1, \dots, \lfloor N/2 \rfloor - 1.
+\]
+Cada tarea toca \'unicamente la pareja de posiciones $\{i, N-1-i\}$. Como los
+\'indices de una pareja pertenecen a la mitad inferior y superior
+respectivamente, los conjuntos de posiciones de dos parejas distintas son
+disjuntos, de modo que todas las tareas son independientes.
 
-\definecolor{codegreen}{rgb}{0,0.6,0}
-\definecolor{codegray}{rgb}{0.5,0.5,0.5}
-\definecolor{codepurple}{rgb}{0.58,0,0.82}
-\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\subsection*{Condiciones de Bernstein}
+Para cada tarea se identifican las variables que lee ($L$) y las que escribe
+($E$):
 
-\lstdefinestyle{mystyle}{
-    backgroundcolor=\color{backcolour},   
-    commentstyle=\color{codegreen},
-    keywordstyle=\color{magenta},
-    numberstyle=\tiny\color{codegray},
-    stringstyle=\color{codepurple},
-    basicstyle=\ttfamily\footnotesize,
-    breakatwhitespace=false,         
-    breaklines=true,                 
-    captionpos=b,                    
-    keepspaces=true,                 
-    numbers=left,                    
-    numbersep=5pt,                  
-    showspaces=false,                
-    showstringspaces=false,
-    showtabs=false,                  
-    tabsize=2
-}
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Tarea & Lee $L$ & Escribe $E$ \\
+\midrule
+$T_i$: \texttt{swap(A[i],A[N-1-i])} & $\{A[i],A[N-1-i]\}$ & $\{A[i],A[N-1-i]\}$ \\
+$T_j$: \texttt{swap(A[j],A[N-1-j])} & $\{A[j],A[N-1-j]\}$ & $\{A[j],A[N-1-j]\}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
 
-\lstset{style=mystyle}
+Verificaci\'on de independencia:
+\begin{itemize}[leftmargin=1.4cm]
+    \item \textbf{$T_i \parallel T_j$ ($i \neq j$):} como
+    $\{i, N-1-i\} \cap \{j, N-1-j\} = \emptyset$, se cumple que
+    $L(T_i) \cap E(T_j) = \emptyset$, $E(T_i) \cap L(T_j) = \emptyset$ y
+    $E(T_i) \cap E(T_j) = \emptyset$. Las tareas son independientes y pueden
+    ejecutarse en paralelo.
+    \item \textbf{Inicio $\rightarrow T_i \rightarrow$ Fin:} no hay
+    dependencias entre las tareas de intercambio; la \'unica sincronizaci\'on
+    necesaria es la barrera \texttt{COEND} que separa el c\'alculo del resto del
+    programa.
+\end{itemize}
 
-\begin{document}
+\subsection*{Grafo de dependencias}
+Las tareas de intercambio no tienen aristas entre s\'i: parten de un nodo
+com\'un y convergen en una barrera de sincronizaci\'on. Cada nodo $T_i$
+representa el intercambio de la pareja de posiciones $(i, N-1-i)$.
 
-\section{Problema 2. Invertir un arreglo}
+\begin{center}
+\begin{tikzpicture}[node distance=1.4cm]
+    \node[task] (inicio) {Inicio};
+    \node[wide] (t0) at (-5.0,-2.0) {T0: (0, N-1)};
+    \node[wide] (t1) at (-1.6,-2.0) {T1: (1, N-2)};
+    \node[font=\large] (dots) at (1.6,-2.0) {$\cdots$};
+    \node[wide] (tk) at (5.0,-2.0) {T\_k: (k, N-1-k)};
+    \node[task] (fin) at (0,-3.8) {Fin};
 
-\subsection{Descripción del Problema}
-Diseñar e implementar un programa concurrente en lenguaje C que invierta los elementos de un arreglo de enteros de tamaño $N$. La inversión debe realizarse dividiendo el arreglo en bloques distribuidos entre múltiples hilos de ejecución POSIX (\texttt{pthreads}).
+    \node[font=\scriptsize\itshape, text=red!70!black, align=center,
+          anchor=west] at (1.7,-3.8)
+          {Barrera de sincronizaci\'on\\(\texttt{COEND})};
 
-\subsection{Demostración de Correctitud}
-Sea $A$ un arreglo de tamaño $N$ indexado de $0$ a $N-1$. La inversión del arreglo requiere intercambiar el elemento en la posición $i$ con el elemento en la posición $N - 1 - i$ para todo $0 \le i < \lfloor N/2 \rfloor$.
+    \draw[dep] (inicio) -- (t0);
+    \draw[dep] (inicio) -- (t1);
+    \draw[dep] (inicio) -- (tk);
+    \draw[dep] (t0) -- (fin);
+    \draw[dep] (t1) -- (fin);
+    \draw[dep] (tk) -- (fin);
+\end{tikzpicture}
+\end{center}
 
-\begin{proof}
-Dividimos el rango de índices $[0, \lfloor N/2 \rfloor - 1]$ en $K$ subintervalos disjuntos $I_j$ asignados a cada hilo $j \in \{0, \dots, K-1\}$. Como $I_a \cap I_b = \emptyset$ para todo $a \neq b$, no existen dos hilos modificando el mismo índice $i$ simultáneamente, garantizando la ausencia de condiciones de carrera sobre los índices de origen. Asimismo, los índices de destino $N - 1 - i$ son únicos y disjuntos entre hilos. Por lo tanto, la ejecución paralela equivale a la permutación simétrica global esperada.
-\end{proof}
+El camino cr\'itico es $\text{Inicio} \rightarrow T_i \rightarrow \text{Fin}$ y
+el paralelismo m\'aximo es $\lfloor N/2 \rfloor$.
 
-\subsection{Código en C}
-\begin{lstlisting}[language=C]
-#include <stdio.h>
-#include <stdlib.h>
-#include <pthread.h>
-
-typedef struct {
-    int *array;
-    int start;
-    int end;
-    int size;
-} ThreadData;
-
-void* reverse_section(void *arg) {
-    ThreadData *data = (ThreadData*) arg;
-    for (int i = data->start; i < data->end; i++) {
-        int target = data->size - 1 - i;
-        int temp = data->array[i];
-        data->array[i] = data->array[target];
-        data->array[target] = temp;
-    }
-    pthread_exit(NULL);
-}
-
-int main(int argc, char *argv[]) {
-    int N = 10;
-    int num_threads = 2;
-    int *array = malloc(N * sizeof(int));
-
-    for (int i = 0; i < N; i++) array[i] = i + 1;
-
-    pthread_t threads[num_threads];
-    ThreadData tdata[num_threads];
-    int mid = N / 2;
-    int chunk = mid / num_threads;
-
-    for (int i = 0; i < num_threads; i++) {
-        tdata[i].array = array;
-        tdata[i].size = N;
-        tdata[i].start = i * chunk;
-        tdata[i].end = (i == num_threads - 1) ? mid : (i + 1) * chunk;
-        pthread_create(&threads[i], NULL, reverse_section, &tdata[i]);
-    }
-
-    for (int i = 0; i < num_threads; i++) {
-        pthread_join(threads[i], NULL);
-    }
-
-    printf("Arreglo invertido:\n");
-    for (int i = 0; i < N; i++) printf("%d ", array[i]);
-    printf("\n");
-
-    free(array);
-    return 0;
-}
+\subsection*{Soluci\'on con COBEGIN--COEND}
+\begin{lstlisting}
+leer A[0..N-1]
+COBEGIN
+    para i = 0 .. floor(N/2)-1 hacer
+        temp   = A[i]
+        A[i]   = A[N-1-i]
+        A[N-1-i] = temp
+    fin para
+COEND
+escribir A
 \end{lstlisting}
 
-\end{document}    
+\noindent
+Cada iteraci\'on del bucle intercambia una pareja distinta de posiciones, por lo
+que todas son independientes y van dentro del mismo \texttt{COBEGIN}. La barrera
+\texttt{COEND} garantiza que el arreglo est\'e completamente invertido antes de
+imprimirlo.

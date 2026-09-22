@@ -3,184 +3,99 @@
 %% ------------------------------------------------------------------
 \section{Problema 1. Ordenamiento lexicogr\'afico}
 
-\documentclass[a4paper,11pt]{article}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage[spanish]{babel}
-\usepackage{listings}
-\usepackage{xcolor}
-\usepackage{geometry}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{array}
-\geometry{margin=2.5cm}
+\subsection*{Enunciado}
+Ordenar lexicogr\'aficamente los elementos de un arreglo de cadenas de forma
+ascendente.
 
-\definecolor{codegreen}{rgb}{0,0.6,0}
-\definecolor{codegray}{rgb}{0.5,0.5,0.5}
-\definecolor{codepurple}{rgb}{0.58,0,0.82}
-\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\subsection*{An\'alisis del algoritmo}
+Se emplea el ordenamiento por transposici\'on par-impar. En cada fase se
+comparan e intercambian parejas de elementos adyacentes, alternando el \'indice
+de inicio:
+\[
+    \text{fase par: } S_i = \text{cmp-exch}(i, i+1) \quad \text{para } i = 0, 2, 4, \dots, N-2,
+\]
+\[
+    \text{fase impar: } S_i = \text{cmp-exch}(i, i+1) \quad \text{para } i = 1, 3, 5, \dots, N-2.
+\]
+Dentro de una misma fase cada pareja toca \'indices disjuntos, por lo que las
+tareas son independientes; entre fases existe una dependencia porque una pareja
+puede leer un elemento que la fase anterior escribi\'o.
 
-\lstdefinestyle{miEstilo}{
-    backgroundcolor=\color{backcolour},
-    commentstyle=\color{codegreen},
-    keywordstyle=\color{blue}\bfseries,
-    numberstyle=\tiny\color{codegray},
-    stringstyle=\color{codepurple},
-    basicstyle=\ttfamily\footnotesize,
-    breakatwhitespace=false,
-    breaklines=true,
-    captionpos=b,
-    keepspaces=true,
-    numbers=left,
-    numbersep=5pt,
-    showspaces=false,
-    showstringspaces=false,
-    showtabs=false,
-    tabsize=4,
-    frame=single,
-    rulecolor=\color{codegray}
-}
-
-\lstset{style=miEstilo, language=C}
-
-\title{Modelado de solución paralela: ordenamiento lexicográfico}
-\author{}
-\date{}
-
-\begin{document}
-
-\maketitle
-
-\section{Problema 1. Ordenamiento lexicográfico}
-\subsection{Enunciado}
-Ordenar lexicográficamente los elementos de un arreglo de cadenas de forma ascendente.
-
-\subsection{Análisis del algoritmo}
-El proceso de ordenamiento lexicográfico ascendente se descompone de la siguiente forma:
-\begin{itemize}
-    \item \textbf{Fase Par ($\text{fase} \pmod 2 = 0$):} Las comparaciones y posibles intercambios de cadenas se ejecutan en paralelo para los índices pares:
-    $$S_i = \text{cmp-exch}(i, i + 1) \quad \text{para } i = 0, 2, 4, \dots, N - 2$$
-    \item \textbf{Fase Impar ($\text{fase} \pmod 2 \neq 0$):} Las comparaciones y posibles intercambios se ejecutan en paralelo para los índices impares:
-    $$S_i = \text{cmp-exch}(i, i + 1) \quad \text{para } i = 1, 3, 5, \dots, N - 3$$
-\end{itemize}
-Las operaciones dentro de una misma fase son totalmente independientes entre sí, cumpliendo con las condiciones de Bernstein.
-
-\section{Condiciones de Bernstein}
-Para las tareas concurrentes dentro de una misma fase del algoritmo de ordenamiento par-impar, se identifican las variables que lee ($L$) y las que escribe ($E$):
+\subsection*{Condiciones de Bernstein}
+Para cada tarea se identifican las variables que lee ($L$) y las que escribe
+($E$):
 
 \begin{center}
-\begin{tabular}{|l|c|c|}
-\hline
-\textbf{Tarea} & \textbf{Lee $L$} & \textbf{Escribe $E$} \\ \hline
-$T_1$: Comparar e intercambiar $A[i]$ y $A[i + 1]$ & $\{A[i], A[i + 1]\}$ & $\{A[i], A[i + 1]\}$ \\ \hline
-$T_2$: Comparar e intercambiar $A[i + 2]$ y $A[i + 3]$ & $\{A[i + 2], A[i + 3]\}$ & $\{A[i + 2], A[i + 3]\}$ \\ \hline
+\begin{tabular}{lll}
+\toprule
+Tarea & Lee $L$ & Escribe $E$ \\
+\midrule
+T1: \texttt{cmp-exch(A[i],A[i+1])}     & $\{A[i],A[i+1]\}$         & $\{A[i],A[i+1]\}$ \\
+T2: \texttt{cmp-exch(A[i+2],A[i+3])}   & $\{A[i+2],A[i+3]\}$       & $\{A[i+2],A[i+3]\}$ \\
+\bottomrule
 \end{tabular}
 \end{center}
 
-\noindent \textbf{Verificación de independencia:} \\
-$T_1 \parallel T_2$: $L(T_1) \cap E(T_2) = \emptyset$, $E(T_1) \cap L(T_2) = \emptyset$ y $E(T_1) \cap E(T_2) = \emptyset$. Como operan sobre índices totalmente distintos del arreglo sin solapamiento, las tres condiciones se cumplen. Son independientes y pueden ejecutarse en paralelo bajo el bloque COBEGIN-COEND de la fase.
-
-\section{Solución COBEGIN - COEND}
-\begin{lstlisting}[language=C, caption={Pseudocódigo con bloques COBEGIN-COEND}]
-PARA fase = 0 HASTA N-1 HACER
-    SI fase es PAR ENTONCES
-        COBEGIN
-            PARA i = 0 HASTA N-2 PASO 2 HACER
-                SI paises[i] > paises[i+1] ENTONCES
-                    INTERCAMBIAR(paises[i], paises[i+1])
-                FIN SI
-            FIN PARA
-        COEND
-    SINO
-        COBEGIN
-            PARA i = 1 HASTA N-2 PASO 2 HACER
-                SI paises[i] > paises[i+1] ENTONCES
-                    INTERCAMBIAR(paises[i], paises[i+1])
-                FIN SI
-            FIN PARA
-        COEND
-    FIN SI
-FIN PARA
-\end{lstlisting}
-
-\noindent \textbf{COBEGIN:} Indica el inicio de la región donde las iteraciones del bucle $i$ se ejecutan concurrentemente. \\
-\textbf{COEND:} Representado por la barrera de sincronización implícita al final del bloque. Ninguna tarea de la siguiente fase puede comenzar hasta que todas las tareas de la fase actual hayan terminado.
-
-\section{Grafo de dependencias}
-Para que el grafo sea visualmente claro y aplicable, se modelará el comportamiento para un subconjunto de $N = 6$ elementos, el cual generaliza perfectamente la estructura para cualquier $N$.
-
-\noindent \textbf{Definición de Tareas (Nodos):} Cada tarea representa la comparación y el intercambio (si es necesario) de dos elementos adyacentes.
-\begin{itemize}
-    \item \textbf{Fase 0 (Par):} T0.1 (0,1), T0.2 (2,3), T0.3 (4,5)
-    \item \textbf{Fase 1 (Impar):} T1.1 (1,2), T1.2 (3,4)
-    \item \textbf{Fase 2 (Par):} T2.1 (0,1), T2.2 (2,3), T2.3 (4,5)
-    \item \textbf{Fase 3 (Impar):} T3.1 (1,2), T3.2 (3,4)
-    \item \textbf{Fase 4 (Par):} T4.1 (0,1), T4.2 (2,3), T4.3 (4,5)
-    \item \textbf{Fase 5 (Impar):} T5.1 (1,2), T5.2 (3,4)
+Verificaci\'on de independencia:
+\begin{itemize}[leftmargin=1.4cm]
+    \item \textbf{T1 $\parallel$ T2:} $L(\text{T1}) \cap E(\text{T2}) =
+    \emptyset$, $E(\text{T1}) \cap L(\text{T2}) = \emptyset$ y
+    $E(\text{T1}) \cap E(\text{T2}) = \emptyset$. Operan sobre \'indices
+    disjuntos del arreglo, por lo que las tres condiciones se cumplen y son
+    independientes dentro de la misma fase.
+    \item \textbf{Fase $k \rightarrow$ fase $k+1$:} existe una dependencia RAW
+    porque una tarea de la fase siguiente lee un elemento que una tarea de la
+    fase actual escribi\'o. Deben respetar ese orden mediante la barrera
+    \texttt{COEND}.
 \end{itemize}
 
-En cada fase, las tareas son independientes entre sí (paralelismo horizontal). Sin embargo, para pasar a la siguiente fase, una tarea depende de los resultados de las dos tareas adyacentes de la fase anterior. Esto genera el patrón de zigzag visible en las conexiones.
+\subsection*{Grafo de dependencias}
+Para que el grafo sea claro se modela el caso $N = 4$, que generaliza la
+estructura para cualquier $N$. Cada nodo $T_{f,i}$ es la comparaci\'on e
+intercambio de la pareja $(i, i+1)$ en la fase $f$.
 
-\section{Implementación en C}
-\begin{lstlisting}[caption={Ordenamiento par-impar paralelo }, label={lst:ordenpaises}]
-#include <stdio.h>
-#include <string.h>
-#include <omp.h>
+\begin{center}
+\begin{tikzpicture}[node distance=1.0cm and 1.3cm]
+    \node[wide] (t01) at (0,0)     {T0.1: (0,1)};
+    \node[wide] (t02) at (0,-2)    {T0.2: (2,3)};
+    \node[wide] (t11) at (2.6,-1)  {T1.1: (1,2)};
+    \node[wide] (t21) at (5.2,0)   {T2.1: (0,1)};
+    \node[wide] (t22) at (5.2,-2)  {T2.2: (2,3)};
+    \node[wide] (t31) at (7.8,-1)  {T3.1: (1,2)};
 
-#define N 10
+    \draw[dep] (t01) -- (t11);
+    \draw[dep] (t02) -- (t11);
+    \draw[dep] (t11) -- (t21);
+    \draw[dep] (t11) -- (t22);
+    \draw[dep] (t21) -- (t31);
+    \draw[dep] (t22) -- (t31);
+\end{tikzpicture}
+\end{center}
 
-int main(void)
-{
-    char paises[N][30] = {
-        "Mexico", "Argentina", "Brasil", "Canada", "Chile",
-        "Colombia", "Francia", "Alemania", "Japon", "Peru"
-    };
-    int fase, i;
+El camino cr\'itico es $T0.1 \rightarrow T1.1 \rightarrow T2.1 \rightarrow
+T3.1$ y el paralelismo m\'aximo es $N/2$ en cada fase.
 
-    for (fase = 0; fase < N; fase++) {
-
-        if (fase % 2 == 0) {
-            /* 
-             * COBEGIN (Fase Par) 
-             */
-            #pragma omp parallel for
-            for (i = 0; i < N - 1; i += 2) {
-                if (strcmp(paises[i], paises[i + 1]) > 0) {
-                    char temp[30];
-                    strcpy(temp, paises[i]);
-                    strcpy(paises[i], paises[i + 1]);
-                    strcpy(paises[i + 1], temp);
-                }
-            }
-            /* COEND */
-        } else {
-            /* 
-             * COBEGIN (Fase Impar) 
-             */
-            #pragma omp parallel for
-            for (i = 1; i < N - 1; i += 2) {
-                if (strcmp(paises[i], paises[i + 1]) > 0) {
-                    char temp[30];
-                    strcpy(temp, paises[i]);
-                    strcpy(paises[i], paises[i + 1]);
-                    strcpy(paises[i + 1], temp);
-                }
-            }
-            /* COEND */
-        }
-    }
-
-    printf("Paises ordenados lexicograficamente de forma ascendente:\n");
-    for (i = 0; i < N; i++)
-        printf("[%d] %s\n", i, paises[i]);
-
-    return 0;
-}
+\subsection*{Soluci\'on con COBEGIN--COEND}
+\begin{lstlisting}
+para fase = 0 .. N-1 hacer
+    si fase es par entonces
+        COBEGIN
+            para i = 0, 2, 4, .., N-2 hacer
+                cmp-exch(A[i], A[i+1])
+            fin para
+        COEND
+    sino
+        COBEGIN
+            para i = 1, 3, 5, .., N-2 hacer
+                cmp-exch(A[i], A[i+1])
+            fin para
+        COEND
+    fin si
+fin para
 \end{lstlisting}
 
-\end{document}
-
-\emph{Pendiente por desarrollar.}
-
-% TODO: modelar el ordenamiento lexicogr\'afico ascendente de un arreglo de
-% cadenas con grafos de dependencia, COBEGIN--COEND y condiciones de Bernstein.
+\noindent
+Todas las parejas de una misma fase son independientes, por lo que van dentro
+del mismo \texttt{COBEGIN}. La barrera \texttt{COEND} garantiza que ninguna
+tarea de la fase siguiente comience hasta que todas las de la fase actual hayan
+terminado, respetando la dependencia RAW entre fases.

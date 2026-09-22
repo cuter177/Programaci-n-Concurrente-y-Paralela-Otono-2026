@@ -3,60 +3,6 @@
 %% ------------------------------------------------------------------
 \section{Problema 3. Intersecci\'on de conjuntos}
 
-\documentclass[12pt,a4paper]{article}
-\usepackage[utf8]{inputenc}
-\usepackage[spanish]{babel}
-\usepackage{amsmath,amssymb}
-\usepackage{geometry}
-\geometry{margin=2.5cm}
-\usepackage{booktabs}
-\usepackage{enumitem}
-\usepackage{xcolor}
-\usepackage{listings}
-\usepackage{tikz}
-\usetikzlibrary{positioning,arrows.meta,calc}
-
-\definecolor{codegray}{gray}{0.95}
-\definecolor{codeblue}{rgb}{0.1,0.1,0.6}
-\definecolor{codegreen}{rgb}{0.0,0.45,0.0}
-
-\tikzset{
-    task/.style={
-        rectangle, rounded corners, draw=codeblue!60, fill=blue!5,
-        align=center, font=\small\ttfamily, inner sep=5pt,
-        minimum height=0.8cm
-    },
-    wide/.style={
-        task, text width=2.8cm, inner sep=3pt, font=\scriptsize\ttfamily
-    },
-    dep/.style={-{Latex[length=2mm]}, thick, draw=codeblue!70}
-}
-
-\lstset{
-    backgroundcolor=\color{codegray},
-    basicstyle=\ttfamily\small,
-    keywordstyle=\color{codeblue}\bfseries,
-    commentstyle=\color{codegreen}\itshape,
-    stringstyle=\color{red!70!black},
-    numbers=left,
-    numberstyle=\tiny\color{gray},
-    numbersep=8pt,
-    breaklines=true,
-    showstringspaces=false,
-    frame=single,
-    rulecolor=\color{gray!50},
-    tabsize=4,
-    extendedchars=true
-}
-
-\title{Problema 3: Intersecci\'on de Conjuntos de Cadenas}
-\date{}
-
-\begin{document}
-\maketitle
-
-\section{Problema 3. Intersecci\'on de conjuntos de cadenas}
-
 \subsection*{Enunciado}
 Sean dos conjuntos de cadenas (sin duplicados internos):
 \[
@@ -162,10 +108,3 @@ escribir C
 
 \noindent
 Las comparaciones $T_{i,j}$ son independientes entre s\'i, por lo que van en el primer \texttt{COBEGIN}. La reducci\'on $S_i$ es el punto de uni\'on por filas y va en el segundo \texttt{COBEGIN}. La compactaci\'on de $C$ permanece secuencial porque todas las escrituras depender\'ian del mismo \'indice $k$. El c\'alculo es correctamente sincronizado por las dos barreras \texttt{COEND}. Tiempo secuencial $T_1 = O(n \cdot m \cdot L)$ y tiempo paralelo $T_p = O(\frac{nmL}{p}+\frac{nm}{p}+n)$.
-
-\end{document}
-
-\emph{Pendiente por desarrollar.}
-
-% TODO: modelar el c\'alculo de la intersecci\'on de dos conjuntos de cadenas
-% con grafos de dependencia, COBEGIN--COEND y condiciones de Bernstein.
