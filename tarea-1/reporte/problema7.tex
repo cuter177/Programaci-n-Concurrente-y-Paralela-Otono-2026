@@ -1,78 +1,170 @@
-%% ------------------------------------------------------------------
-%% Problema 7
-%% ------------------------------------------------------------------
-\section{Problema 7. Descuento en medicamentos}
-
-% TODO: modelar la determinaci\'on del descuento en la compra de medicamentos
-% con grafos de dependencia, COBEGIN--COEND y condiciones de Bernstein.
 \documentclass[12pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[spanish]{babel}
-\usepackage{amsmath, amssymb, amsthm}
-\usepackage{tikz}
-\usetikzlibrary{arrows.meta, positioning, shapes.geometric}
 \usepackage{geometry}
-\geometry{letterpaper, margin=1in}
+\geometry{letterpaper, margin=2.5cm}
+
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=mystyle}
 
 \begin{document}
+\section{Problema 7. Descuento en medicamentos}
+% ==================================================================
+% PORTADA INSTITUCIONAL (BUAP)
+% ==================================================================
+\begin{titlepage}
+    \centering
+    {\bfseries\Large BENEM\'ERITA UNIVERSIDAD AUT\'ONOMA DE PUEBLA \par}
+    \vspace{0.3cm}
+    {\large Facultad de Ciencias de la Computaci\'on \par}
+    \vspace{1.5cm}
+    {\large Programaci\'on Concurrente y Paralela \par}
+    \vspace{2.5cm}
+    
+    {\bfseries\LARGE Tarea 1 \par}
+    \vspace{0.4cm}
+    {\Large Problema 2: Invertir un Arreglo \par}
+    \vspace{0.2cm}
+    {\small (Primer parcial) \par}
+    
+    \vfill
+    
+    {\bfseries\large Equipo: \par}
+    \vspace{0.3cm}
+    \begin{tabular}{c}
+        Islas G\'omez Luis Antonio --- 202372860 \\
+        Ram\'irez Candia Alfredo --- 202375947 \\
+        P\'erez Flores Julio C\'esar --- 202247445 \\
+        Navarro Soto Mario Alberto --- 202264602 \\
+    \end{tabular}
+    
+    \vfill
+    
+    {\large Docente: Hilda Castillo Zacatelco \par}
+    \vspace{0.8cm}
+    {\large 20 de septiembre de 2026 \par}
+\end{titlepage}
 
-\section{Problema 7. Redes de Interconexión y Topologías}
+\newpage
+\tableofcontents
+\newpage
 
-\subsection{Análisis Teórico: Hipercubos de Dimensión $n$}
-Un hipercubo $n$-dimensional ($Q_n$) es un grafo cuyos vértices corresponden a las $2^n$ cadenas binarias de longitud $n$. Dos vértices están conectados por una arista si y solo si sus representaciones binarias difieren exactamente en un solo bit.
+% ==================================================================
+% CONTENIDO DEL DOCUMENTO
+% ==================================================================
+\section{Introducci\'on}
+El procesamiento paralelo de arreglos es una de las aplicaciones fundamentales de la computaci\'on concurrente. En esta pr\'actica se aborda la inversi\'on paralela de los elementos de un arreglo mediante el uso de hilos POSIX (\texttt{pthreads}) en lenguaje C.
 
-\subsubsection{Propiedades de la Topología}
+\section{Objetivos}
 \begin{itemize}
-    \item \textbf{Número de Vértices (Nodos):} $V = 2^n$
-    \item \textbf{Número de Aristas (Enlaces):} $E = n \cdot 2^{n-1}$
-    \item \textbf{Grado de cada Nodo:} $D = n$
-    \item \textbf{Diámetro de la Red:} $\text{Diámetro} = n$
+    \item Dise\~nar una estrategia de divisi\'on de datos por bloques disjuntos.
+    \item Implementar la inversi\'on concurrente en C con la biblioteca \texttt{pthread.h}.
+    \item Demostrar anal\'iticamente que la ejecuci\'on no genera condiciones de carrera ni interbloqueos.
 \end{itemize}
 
-\subsection{Representación Gráfica}
-A continuación se ilustra la estructura de un hipercubo tridimensional ($Q_3$), conformado por $2^3 = 8$ nodos y $12$ enlaces binarios.
+\section{Marco Te\'orico}
+\subsection{Hilos POSIX (pthreads)}
+Los hilos permiten la ejecuci\'on concurrente de m\'ultiples flujos dentro del mismo espacio de direcci\'on de memoria. Para evitar inconsistencias al modificar estructuras compartidas, la memoria asignada a cada hilo debe ser mutuamente excluyente o sincronizada.
 
-\begin{figure}[h!]
-\centering
-\begin{tikzpicture}[scale=2, auto, >=stealth,
-    node distance=2cm,
-    vertex/.style={circle, draw=blue!80, fill=blue!10, thick, inner sep=2pt, minimum size=8mm}]
+\subsection{Divisi\'on por Bloques}
+Para un arreglo de tamaño $N$, la inversi\'on solo requiere intercambiar los elementos del rango $i \in [0, \lfloor N/2 \rfloor - 1]$ con los elementos correspondientes $N - 1 - i$. Dividir la primera mitad del arreglo entre $K$ hilos garantiza que ningún hilo acceda a la misma casilla simult\'aneamente.
 
-    % Nodos del cubo frontal
-    \node[vertex] (000) at (0,0) {000};
-    \node[vertex] (100) at (2,0) {100};
-    \node[vertex] (110) at (2,2) {110};
-    \node[vertex] (010) at (0,2) {010};
+\section{Ejercicio 2: Invertir un Arreglo en Paralelo}
 
-    % Nodos del cubo trasero
-    \node[vertex] (001) at (0.8,0.8) {001};
-    \node[vertex] (101) at (2.8,0.8) {101};
-    \node[vertex] (111) at (2.8,2.8) {111};
-    \node[vertex] (011) at (0.8,2.8) {011};
+\subsection{Demostraci\'on de Correctitud}
+Sea $A$ un arreglo de tamaño $N$. Sea $M = \lfloor N/2 \rfloor$. Asignamos a cada hilo $j \in \{0, \dots, K-1\}$ un subintervalo continuo $I_j = [start_j, end_j)$ tal que:
+\[
+\bigcup_{j=0}^{K-1} I_j = [0, M) \quad \text{y} \quad I_a \cap I_b = \emptyset \quad \forall a \neq b
+\]
+Dado que $I_a \cap I_b = \emptyset$, los hilos acceden a posiciones $i$ e de intercambio $N-1-i$ totalmente disjuntas en cada paso, lo que satisface las Condiciones de Bernstein para la ejecuci\'on concurrente sin bloqueos mutuos.
 
-    % Aristas del cubo frontal
-    \draw[thick] (000) -- (100);
-    \draw[thick] (100) -- (110);
-    \draw[thick] (110) -- (010);
-    \draw[thick] (010) -- (000);
+\subsection{C\'odigo de la Soluci\'on en C}
+\begin{lstlisting}[language=C]
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
 
-    % Aristas del cubo trasero
-    \draw[thick] (001) -- (101);
-    \draw[thick] (101) -- (111);
-    \draw[thick] (111) -- (011);
-    \draw[thick] (011) -- (001);
+typedef struct {
+    int *array;
+    int start;
+    int end;
+    int size;
+} ThreadData;
 
-    % Aristas de interconexión (frente a atrás)
-    \draw[thick, dashed, red!70!black] (000) -- (001);
-    \draw[thick, dashed, red!70!black] (100) -- (101);
-    \draw[thick, dashed, red!70!black] (110) -- (111);
-    \draw[thick, dashed, red!70!black] (010) -- (011);
+void* reverse_section(void *arg) {
+    ThreadData *data = (ThreadData*) arg;
+    for (int i = data->start; i < data->end; i++) {
+        int target = data->size - 1 - i;
+        int temp = data->array[i];
+        data->array[i] = data->array[target];
+        data->array[target] = temp;
+    }
+    pthread_exit(NULL);
+}
 
-\end{tikzpicture}
-\caption{Topología de Hipercubo 3D ($Q_3$). Las líneas punteadas rojas unen nodos que difieren en el tercer bit.}
-\end{figure}
+int main() {
+    int N = 10;
+    int num_threads = 2;
+    int *array = malloc(N * sizeof(int));
 
-\subsection{Conclusiones}
-La topología en hipercubo ofrece un excelente compromiso entre el diámetro de la red y el grado de los nodos, permitiendo un enrutamiento eficiente de complejidad $\mathcal{O}(n)$ en algoritmos de paso de mensajes paralelos.
+    for (int i = 0; i < N; i++) array[i] = i + 1;
+
+    pthread_t threads[num_threads];
+    ThreadData tdata[num_threads];
+    int mid = N / 2;
+    int chunk = mid / num_threads;
+
+    for (int i = 0; i < num_threads; i++) {
+        tdata[i].array = array;
+        tdata[i].size = N;
+        tdata[i].start = i * chunk;
+        tdata[i].end = (i == num_threads - 1) ? mid : (i + 1) * chunk;
+        pthread_create(&threads[i], NULL, reverse_section, &tdata[i]);
+    }
+
+    for (int i = 0; i < num_threads; i++) {
+        pthread_join(threads[i], NULL);
+    }
+
+    printf("Arreglo invertido:\n");
+    for (int i = 0; i < N; i++) printf("%d ", array[i]);
+    printf("\n");
+
+    free(array);
+    return 0;
+}
+\end{lstlisting}
+
+\section{Conclusi\'on}
+La descomposici\'on por datos disjuntos permite paralelizar operaciones sobre arreglos en memoria compartida sin necesidad de mecanismos pesados de sincronizaci\'on (como mutexes), maximizando el rendimiento del procesador.
 
 \end{document}
