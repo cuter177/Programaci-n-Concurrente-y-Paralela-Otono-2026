@@ -4,40 +4,49 @@
 \usepackage{geometry}
 \geometry{letterpaper, margin=2.5cm}
 
+% Paquetes de diseño y tablas
 \usepackage{booktabs}
 \usepackage{enumitem}
-\usepackage{amsmath, amssymb, amsthm}
+
+% Entorno para código y diagramas
 \usepackage{listings}
 \usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning}
 
-\definecolor{codegreen}{rgb}{0,0.6,0}
-\definecolor{codegray}{rgb}{0.5,0.5,0.5}
-\definecolor{codepurple}{rgb}{0.58,0,0.82}
-\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
-
-\lstdefinestyle{mystyle}{
-    backgroundcolor=\color{backcolour},   
-    commentstyle=\color{codegreen},
-    keywordstyle=\color{magenta},
-    numberstyle=\tiny\color{codegray},
-    stringstyle=\color{codepurple},
-    basicstyle=\ttfamily\footnotesize,
-    breakatwhitespace=false,         
-    breaklines=true,                 
-    captionpos=b,                    
-    keepspaces=true,                 
-    numbers=left,                    
-    numbersep=5pt,                  
-    showspaces=false,                
-    showstringspaces=false,
-    showtabs=false,                  
-    tabsize=2
+% Configuración de TikZ para los Grafos de Dependencia
+\tikzset{
+    task/.style={
+        rectangle, 
+        draw=black, 
+        fill=gray!10, 
+        thick, 
+        rounded corners=2pt,
+        align=center, 
+        font=\small\sffamily,
+        inner sep=6pt
+    },
+    dep/.style={
+        ->, 
+        >={Stealth[length=6pt]}, 
+        thick, 
+        shorten >=2pt, 
+        shorten <=2pt
+    }
 }
 
-\lstset{style=mystyle}
+% Configuración para bloques de seudocódigo
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\bfseries\color{blue!80!black},
+    commentstyle=\itshape\color{green!50!black},
+    frame=single,
+    breaklines=true,
+    showstringspaces=false
+}
 
 \begin{document}
-\section{Problema 7. Descuento en medicamentos}
+
 % ==================================================================
 % PORTADA INSTITUCIONAL (BUAP)
 % ==================================================================
@@ -52,7 +61,7 @@
     
     {\bfseries\LARGE Tarea 1 \par}
     \vspace{0.4cm}
-    {\Large Problema 2: Invertir un Arreglo \par}
+    {\Large Modelado de soluciones paralelas \par}
     \vspace{0.2cm}
     {\small (Primer parcial) \par}
     
@@ -82,89 +91,113 @@
 % CONTENIDO DEL DOCUMENTO
 % ==================================================================
 \section{Introducci\'on}
-El procesamiento paralelo de arreglos es una de las aplicaciones fundamentales de la computaci\'on concurrente. En esta pr\'actica se aborda la inversi\'on paralela de los elementos de un arreglo mediante el uso de hilos POSIX (\texttt{pthreads}) en lenguaje C.
+La evaluaci\'on paralela de reglas de negocio permite agilizar los procesos de toma de decisiones en sistemas transaccionales. En este trabajo se presenta el modelado concurrente para calcular el descuento aplicable a una compra de medicamentos, donde m\'ultiples criterios de bonificaci\'on se eval\'uan de manera simult\'anea garantizando que no sean acumulables.
 
 \section{Objetivos}
 \begin{itemize}
-    \item Dise\~nar una estrategia de divisi\'on de datos por bloques disjuntos.
-    \item Implementar la inversi\'on concurrente en C con la biblioteca \texttt{pthread.h}.
-    \item Demostrar anal\'iticamente que la ejecuci\'on no genera condiciones de carrera ni interbloqueos.
+    \item Dise\~nar una soluci\'on concurrente para evaluar las reglas de descuento comercial de forma paralela.
+    \item Analizar la independencia de la lectura de variables e indicar las dependencias de datos mediante las Condiciones de Bernstein.
+    \item Representar gr\'aficamente el flujo de ejecuci\'on y las barreras de sincronizaci\'on a trav\'es de un Grafo de Dependencia.
+    \item Implementar la estructura del algoritmo haciendo uso de las sentencias \texttt{COBEGIN--COEND}.
 \end{itemize}
 
 \section{Marco Te\'orico}
-\subsection{Hilos POSIX (pthreads)}
-Los hilos permiten la ejecuci\'on concurrente de m\'ultiples flujos dentro del mismo espacio de direcci\'on de memoria. Para evitar inconsistencias al modificar estructuras compartidas, la memoria asignada a cada hilo debe ser mutuamente excluyente o sincronizada.
+Para validar formalmente el correcto funcionamiento de una soluci\'on concurrente se emplean las siguientes herramientas:
+\begin{itemize}
+    \item \textbf{Condiciones de Bernstein:} Conjunto de tres propiedades que aseguran que la ejecuci\'on concurrente de dos procesos $S_i$ y $S_j$ sea determinista. Considerando los conjuntos de lectura $L(S)$ y escritura $E(S)$, se debe cumplir:
+    \[
+        L(S_i) \cap E(S_j) = \emptyset, \quad E(S_i) \cap L(S_j) = \emptyset, \quad E(S_i) \cap E(S_j) = \emptyset.
+    \]
+    \item \textbf{Grafos de Dependencia:} Representaci\'on mediante nodos (procesos) y aristas dirigidas (dependencias temporales o de datos) que permiten visualizar qu\'e tareas se pueden ejecutar en paralelo y cu\'ales requieren sincronizaci\'on.
+    \item \textbf{COBEGIN--COEND:} Bloque de control utilizado para delimitar la ejecuci\'on paralela de m\'ultiples instrucciones con sincronizaci\'on impl\'icita al terminar el bloque.
+\end{itemize}
 
-\subsection{Divisi\'on por Bloques}
-Para un arreglo de tamaño $N$, la inversi\'on solo requiere intercambiar los elementos del rango $i \in [0, \lfloor N/2 \rfloor - 1]$ con los elementos correspondientes $N - 1 - i$. Dividir la primera mitad del arreglo entre $K$ hilos garantiza que ningún hilo acceda a la misma casilla simult\'aneamente.
+\section{Ejercicio 7: Evaluaci\'on de Descuentos en Medicamentos}
 
-\section{Ejercicio 2: Invertir un Arreglo en Paralelo}
+\subsection{Enunciado}
+Suponga que se requiere conocer si una persona podr\'a obtener un descuento en la compra de sus medicamentos. Una persona puede obtener un descuento del 20\% sobre su compra total en la compra de al menos \$1000.00, o un descuento del 30\% en la compra de \$1500.00, o un descuento del 10\% en la compra de al menos un anti\'acido de cualquier costo. Los descuentos no son acumulables en la misma compra.
 
-\subsection{Demostraci\'on de Correctitud}
-Sea $A$ un arreglo de tamaño $N$. Sea $M = \lfloor N/2 \rfloor$. Asignamos a cada hilo $j \in \{0, \dots, K-1\}$ un subintervalo continuo $I_j = [start_j, end_j)$ tal que:
-\[
-\bigcup_{j=0}^{K-1} I_j = [0, M) \quad \text{y} \quad I_a \cap I_b = \emptyset \quad \forall a \neq b
-\]
-Dado que $I_a \cap I_b = \emptyset$, los hilos acceden a posiciones $i$ e de intercambio $N-1-i$ totalmente disjuntas en cada paso, lo que satisface las Condiciones de Bernstein para la ejecuci\'on concurrente sin bloqueos mutuos.
+\subsection{L\'ogica del Algoritmo Paralelo}
+El problema se resuelve estructurando el algoritmo en dos etapas consecutivas:
+\begin{enumerate}
+    \item \textbf{Evaluaci\'on Concurrente ($S_0, S_1, S_2$):} Tres procesos eval\'uan en paralelo cada regla de descuento independientemente, guardando el porcentaje obtenido en las variables $d_0, d_1, d_2$:
+    \begin{itemize}
+        \item $S_0$: Eval\'ua si $\text{total} \ge 1000.00$ para asignar un 20\% ($d_0$).
+        \item $S_1$: Eval\'ua si $\text{total} == 1500.00$ para asignar un 30\% ($d_1$).
+        \item $S_2$: Eval\'ua si la compra incluye un anti\'acido ($\text{tiene\_antiacido}$) para asignar un 10\% ($d_2$).
+    \end{itemize}
+    \item \textbf{Consolidaci\'on Secuencial ($S_{\text{final}}$):} Un proceso final toma el mayor de los descuentos calculados para garantizar que no sean acumulables:
+    \[
+        d_{\text{final}} = \max(d_0, d_1, d_2).
+    \]
+\end{enumerate}
 
-\subsection{C\'odigo de la Soluci\'on en C}
-\begin{lstlisting}[language=C]
-#include <stdio.h>
-#include <stdlib.h>
-#include <pthread.h>
+\subsection{Condiciones de Bernstein}
+Analizamos los conjuntos de Lectura ($L$) y Escritura ($E$) para cada proceso:
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Proceso & Lectura ($L$) & Escritura ($E$) \\
+\midrule
+$S_0$ (Regla 20\%) & $\{ \text{total} \}$ & $\{ d_0 \}$ \\
+$S_1$ (Regla 30\%) & $\{ \text{total} \}$ & $\{ d_1 \}$ \\
+$S_2$ (Regla 10\%) & $\{ \text{tiene\_antiacido} \}$ & $\{ d_2 \}$ \\
+$S_{\text{final}}$ & $\{ d_0, d_1, d_2 \}$ & $\{ d_{\text{final}} \}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
 
-typedef struct {
-    int *array;
-    int start;
-    int end;
-    int size;
-} ThreadData;
+\begin{itemize}
+    \item \textbf{Independencia entre las Evaluaciones ($S_0 \parallel S_1 \parallel S_2$):}
+    Aunque $S_0$ y $S_1$ comparten la lectura de la variable \texttt{total}, la intersecci\'on de lectura compartida $L(S_0) \cap L(S_1) \neq \emptyset$ est\'a permitida. Dado que $E(S_i) \cap E(S_j) = \emptyset$ y $L(S_i) \cap E(S_j) = \emptyset$ para todo $i \neq j$, las tres evaluaciones son mutuamente independientes.
+    \item \textbf{Dependencia con el Proceso Final ($S_i \rightarrow S_{\text{final}}$):}
+    Existe una dependencia de datos (RAW) expresada por:
+    \[
+        E(S_i) \cap L(S_{\text{final}}) = \{ d_i \} \neq \emptyset.
+    \]
+    Por lo tanto, $S_{\text{final}}$ debe ejecutarse estrictamente despu\'es de que todos los procesos paralelos hayan concluido.
+\end{itemize}
 
-void* reverse_section(void *arg) {
-    ThreadData *data = (ThreadData*) arg;
-    for (int i = data->start; i < data->end; i++) {
-        int target = data->size - 1 - i;
-        int temp = data->array[i];
-        data->array[i] = data->array[target];
-        data->array[target] = temp;
-    }
-    pthread_exit(NULL);
-}
+\subsection{Grafo de Dependencia}
+\begin{center}
+\begin{tikzpicture}[node distance=1.2cm and 1.8cm]
+    \node[task] (inicio) {Inicio};
+    
+    \node[task, below left=1.2cm and 1.5cm of inicio] (s0) {$S_0$: Evaluar 20\% ($d_0$)};
+    \node[task, below=1.2cm of inicio] (s1) {$S_1$: Evaluar 30\% ($d_1$)};
+    \node[task, below right=1.2cm and 1.5cm of inicio] (s2) {$S_2$: Evaluar 10\% ($d_2$)};
+    
+    \node[task, below=2.2cm of s1] (sfinal) {$S_{\text{final}}$: $d_{\text{final}} = \max(d_0, d_1, d_2)$};
+    \node[task, below=1.0cm of sfinal] (fin) {Fin};
 
-int main() {
-    int N = 10;
-    int num_threads = 2;
-    int *array = malloc(N * sizeof(int));
+    \draw[dep] (inicio) -- (s0);
+    \draw[dep] (inicio) -- (s1);
+    \draw[dep] (inicio) -- (s2);
 
-    for (int i = 0; i < N; i++) array[i] = i + 1;
+    \draw[dep] (s0) -- (sfinal);
+    \draw[dep] (s1) -- (sfinal);
+    \draw[dep] (s2) -- (sfinal);
 
-    pthread_t threads[num_threads];
-    ThreadData tdata[num_threads];
-    int mid = N / 2;
-    int chunk = mid / num_threads;
+    \draw[dep] (sfinal) -- (fin);
+\end{tikzpicture}
+\end{center}
 
-    for (int i = 0; i < num_threads; i++) {
-        tdata[i].array = array;
-        tdata[i].size = N;
-        tdata[i].start = i * chunk;
-        tdata[i].end = (i == num_threads - 1) ? mid : (i + 1) * chunk;
-        pthread_create(&threads[i], NULL, reverse_section, &tdata[i]);
-    }
+\subsection{Implementaci\'on con COBEGIN--COEND}
+\begin{lstlisting}
+// Entrada: total, tiene_antiacido
+// Salida: d_final
 
-    for (int i = 0; i < num_threads; i++) {
-        pthread_join(threads[i], NULL);
-    }
+COBEGIN
+    S_0; // d0 = (total >= 1000.0) ? 0.20 : 0.0
+    S_1; // d1 = (total == 1500.0) ? 0.30 : 0.0
+    S_2; // d2 = (tiene_antiacido) ? 0.10 : 0.0
+COEND
 
-    printf("Arreglo invertido:\n");
-    for (int i = 0; i < N; i++) printf("%d ", array[i]);
-    printf("\n");
-
-    free(array);
-    return 0;
-}
+S_final; // d_final = max(d0, d1, d2)
+escribir d_final
 \end{lstlisting}
 
 \section{Conclusi\'on}
-La descomposici\'on por datos disjuntos permite paralelizar operaciones sobre arreglos en memoria compartida sin necesidad de mecanismos pesados de sincronizaci\'on (como mutexes), maximizando el rendimiento del procesador.
+La evaluaci\'on concurrente de reglas de negocio permite aislar la l\'ogica condicional de cada criterio sin introducir interferencia en memoria. La aplicaci\'on de las Condiciones de Bernstein confirma que la fase de selecci\'on del m\'aximo beneficio requiere una barrera expl\'icita de sincronizaci\'on provista por el cierre \texttt{COEND}, garantizando una resoluci\'on correcta y no acumulable del descuento final.
 
 \end{document}
