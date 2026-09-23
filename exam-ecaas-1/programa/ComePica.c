@@ -10,10 +10,10 @@ Con fork() se crean dos procesos: el hijo se dedica a producir numeros y el
 padre a consumirlos. Cada proceso tiene su PROPIO buffer en memoria (un arreglo
 privado): el productor guarda ahi lo que va generando y el consumidor guarda
 ahi lo que va recibiendo. La comunicacion entre ambos se hace con el archivo de
-texto memoria.txt, que se emplea como una memoria compartida logica: el
-productor copia ahi el elemento que quiere enviar y el consumidor lo copia a su
-buffer. candado.txt funciona como un candado que solo un proceso puede tener a
-la vez. No se usan tuberias, senales, wait, exec, semaforos, mutex, monitores,
+texto memoria.txt, que se emplea UNICAMENTE como el intermediario de la
+comunicacion: guarda un solo elemento el tiempo justo para que el otro proceso
+lo recoja, sin acumular nada. candado.txt funciona como un candado que solo un
+proceso puede tener a la vez. No se usan tuberias, senales, wait, exec, semaforos, mutex, monitores,
 memoria compartida real ni colas de mensajes; la sincronizacion se logra con
 ciclos de espera y pequenos retardos.
 */
@@ -27,55 +27,46 @@ ciclos de espera y pequenos retardos.
 #define ARCHIVO_CANDADO "candado.txt"
 
 
-/* Lee memoria.txt y devuelve cuantas lineas tiene, o sea, cuantos elementos
-   hay en el canal en este momento. */
+/* Revisa si hay un elemento esperando en el intermediario de comunicacion.
+   Devuelve 1 si hay uno y 0 si esta vacio. */
 int contarItems(){
     FILE *f = fopen(ARCHIVO_MEMORIA, "r");
     if(f == NULL) return 0;
 
-    int contador = 0;
     char linea[32];
-    while(fgets(linea, sizeof(linea), f)){
-        contador++;
-    }
+    int hay = (fgets(linea, sizeof(linea), f) != NULL);
     fclose(f);
-    return contador;
+    return hay;
 }
 
-/* Agrega un numero al final de memoria.txt, es decir, lo deposita en el canal.
-   Se abre en modo "a" (append) justamente para no borrar lo que ya estaba
-   guardado. */
+/* Deposita un numero en el intermediario. Solo se llama cuando esta vacio, de
+   modo que el archivo no almacena: guarda el dato el tiempo justo para que el
+   otro proceso lo recoja. */
 void agregarItem(int numero){
-    FILE *f = fopen(ARCHIVO_MEMORIA, "a");
+    FILE *f = fopen(ARCHIVO_MEMORIA, "w");
     if(f != NULL){
         fprintf(f, "%d\n", numero);
         fclose(f);
     }
 }
 
-/* Extrae el primer numero del canal, que es el mas antiguo: por eso el orden
-   de salida es FIFO. Primero lee todas las lineas, se queda con la primera y
-   despues reescribe el archivo con las que sobraron. */
+/* Recoge el numero que el productor dejo en el intermediario y deja el archivo
+   vacio, listo para el siguiente intercambio. */
 int quitarItem(){
     FILE *f = fopen(ARCHIVO_MEMORIA, "r");
     if(f == NULL) 
       return -1;
 
-    char lineas[BUFFER_SIZE][32];
-    int total = 0;
-    while(total < BUFFER_SIZE && fgets(lineas[total], sizeof(lineas[total]), f)){
-        total++;
+    char linea[32];
+    if(fgets(linea, sizeof(linea), f) == NULL){
+        fclose(f);
+        return -1;
     }
     fclose(f);
 
-    if(total == 0) return -1;
-
-    int item = atoi(lineas[0]);
+    int item = atoi(linea);
 
     f = fopen(ARCHIVO_MEMORIA, "w");
-    for(int i = 1; i < total; i++){
-        fputs(lineas[i], f);
-    }
     fclose(f);
 
     return item;
@@ -115,7 +106,7 @@ int main(){
     /* Sin buffer, cada printf sale de inmediato en pantalla. */
     setbuf(stdout, NULL);
 
-    /* Deja el canal vacio y borra cualquier candado que haya quedado
+    /* Deja el intermediario vacio y borra cualquier candado que haya quedado
        colgado de una ejecucion anterior. */
     fclose(fopen(ARCHIVO_MEMORIA, "w"));
     unlink(ARCHIVO_CANDADO);
@@ -139,11 +130,11 @@ int main(){
                 numero = (numero % 10) + 1;
             }
 
-            /* Envia al canal solo si el canal tiene espacio y hay algo
-               pendiente en su buffer privado. Todo el acceso al canal va
-               dentro de la region critica. */
+            /* Envia al intermediario solo si esta vacio y hay algo pendiente
+               en su buffer privado. Todo el acceso va dentro de la region
+               critica. */
             adquirirCandado();
-            if(contarItems() < BUFFER_SIZE && n > 0){
+            if(contarItems() == 0 && n > 0){
                 int enviado = bufferPropio[0];
                 agregarItem(enviado);
                 for(int i = 1; i < n; i++){
@@ -153,8 +144,8 @@ int main(){
                 liberarCandado();
                 printf("[Productor] envio: %d\n", enviado);
             } else {
-                /* El canal esta lleno o no hay nada pendiente: suelta el
-                   candado y espera. */
+                /* El intermediario sigue ocupado o no hay nada pendiente:
+                   suelta el candado y espera. */
                 liberarCandado();
             }
             usleep(200000);
@@ -173,7 +164,8 @@ int main(){
             }
             liberarCandado();
 
-            /* Consume de su buffer privado, que es independiente del canal. */
+            /* Consume de su buffer privado, que es independiente del
+               intermediario. */
             if(n > 0){
                 int item = bufferPropio[0];
                 for(int i = 1; i < n; i++){
