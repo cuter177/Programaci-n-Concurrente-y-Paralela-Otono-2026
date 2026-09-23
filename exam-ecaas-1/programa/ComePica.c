@@ -58,7 +58,8 @@ void agregarItem(int numero){
    despues reescribe el archivo con las que sobraron. */
 int quitarItem(){
     FILE *f = fopen(ARCHIVO_MEMORIA, "r");
-    if(f == NULL) return -1;
+    if(f == NULL) 
+      return -1;
 
     char lineas[BUFFER_SIZE][32];
     int total = 0;
@@ -119,8 +120,6 @@ int main(){
     fclose(fopen(ARCHIVO_MEMORIA, "w"));
     unlink(ARCHIVO_CANDADO);
 
-    /* Aqui nace el segundo proceso. El hijo recibe un 0, el padre recibe el
-       PID del hijo, y un valor negativo significa que hubo un error. */
     int pid = fork();
 
     if(pid == -1){
@@ -129,15 +128,11 @@ int main(){
     }
 
     if(pid == 0){
-        /* Rama del productor: este es el proceso hijo. Tiene su propio buffer
-           privado, en el que primero acumula lo que produce y del que despues
-           envia al canal. */
         int bufferPropio[BUFFER_SIZE];
         int n = 0;
         int numero = 1;
 
         while(1){
-            /* Produce: guarda el numero en su buffer privado si hay espacio. */
             if(n < BUFFER_SIZE){
                 bufferPropio[n] = numero;
                 n++;
@@ -167,15 +162,10 @@ int main(){
     }
 
     if(pid > 0){
-        /* Rama del consumidor: este es el proceso padre. Tambien tiene su
-           propio buffer privado, al que primero copia lo que llega del canal
-           y de donde despues consume. */
         int bufferPropio[BUFFER_SIZE];
         int n = 0;
 
         while(1){
-            /* Recibe del canal solo si hay elementos y su buffer privado tiene
-               espacio. */
             adquirirCandado();
             if(contarItems() > 0 && n < BUFFER_SIZE){
                 bufferPropio[n] = quitarItem();
