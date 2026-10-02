@@ -3,6 +3,7 @@
 #include <vector>
 #include <thread>
 #include <random>
+#include <iostream>
 
 int main() {
   Estudiante Juan("Juan Ramirez Bedolla", 20);
@@ -37,23 +38,18 @@ int main() {
     estudiante.setCalificacionTarea4(nota());
   }
 
-  for (Estudiante& estudiante : estudiantes) {
-    std::thread t1([&estudiante]() {
-      estudiante.calcularPromedioParciales();
-    });
-    t1.join();
+  // COBEGIN-COEND: un proceso por estudiante (componentes independientes).
+  std::vector<std::thread> hilos;
+  for (Estudiante& estudiante : estudiantes)
+    hilos.emplace_back([&estudiante]() { estudiante.procesar(); });
+  for (std::thread& hilo : hilos)
+    hilo.join();
 
-    std::thread t2([&estudiante]() {
-      estudiante.calcularPromedioTareas();
-    });
-    t2.join();
-
-    estudiante.calcularCalificacionFinal();
-
-    if(estudiante.aprobo()){
+  // Impresion secuencial: la salida es un recurso compartido.
+  std::cout << "Estudiantes aprobados:" << std::endl;
+  for (Estudiante& estudiante : estudiantes)
+    if (estudiante.aprobo())
       estudiante.mostrarInformacion();
-    }
-  }
 
   return 0;
 }

@@ -1,40 +1,32 @@
 #include "raices.h"
 #include <iostream>
-#include <thread>
-#include <functional>
 
-int main(){
-  double a, b, c;
+int main() {
+    double a, b, c;
 
-  std::cout << "Ingrese el valor de a: ";
-  std::cin >> a;
-  std::cout << "Ingrese el valor de b: ";
-  std::cin >> b;
-  std::cout << "Ingrese el valor de c: ";
-  std::cin >> c;
+    std::cout << "Ingrese el valor de a: ";
+    std::cin >> a;
+    std::cout << "Ingrese el valor de b: ";
+    std::cin >> b;
+    std::cout << "Ingrese el valor de c: ";
+    std::cin >> c;
 
-  Raices raices(a, b, c);
-
-  std::thread t1([&raices](){
-    double raiz1 = raices.Raiz1();
-    if (raiz1 == 0){
-      std::cout << "No hay raiz 1" << std::endl;
-    } else {
-      std::cout << "Raiz 1: " << raiz1 << std::endl;
+    if (a == 0) {
+        std::cout << "No es una ecuacion cuadratica (a = 0)" << std::endl;
+        return 0;
     }
-  });
-  t1.join();
-  
-  std::thread t2([&raices](){
-    double raiz2 = raices.Raiz2();
-    if (raiz2 == 0){
-      std::cout << "No hay raiz 2" << std::endl;
-    } else {
-      std::cout << "Raiz 2: " << raiz2 << std::endl;
+
+    Raices raices(a, b, c);
+    raices.calcular();
+
+    if (!raices.hayRaices()) {
+        std::cout << "No hay raices reales (D = " << raices.getD() << ")" << std::endl;
+        return 0;
     }
-  });
 
-  t2.join();
+    std::cout << "Discriminante D: " << raices.getD() << std::endl;
+    std::cout << "Raiz 1: " << raices.getX1() << std::endl;
+    std::cout << "Raiz 2: " << raices.getX2() << std::endl;
 
-  return 0;
+    return 0;
 }

@@ -1,10 +1,15 @@
 #include "estudiante.h"
 #include <string>
 #include <iostream>
+#include <thread>
 
 Estudiante::Estudiante(std::string nombre, int edad){
   this -> nombre = nombre;
   this -> edad = edad;
+  this -> calificacion_final = 0.0;
+  this -> promedio_parciales = 0.0;
+  this -> promedio_tareas = 0.0;
+  this -> aprobado = false;
 }
 
 void Estudiante::setNombre(std::string nombre){
@@ -91,19 +96,33 @@ void Estudiante::calcularPromedioTareas(){
 
 
 double Estudiante::calcularCalificacionFinal(){
-  calcularPromedioParciales();
-  calcularPromedioTareas();
   calificacion_final = promedio_parciales * 0.5 + promedio_tareas * 0.5;
   return calificacion_final;
 }
 
-bool Estudiante::aprobo(){
-  if (calificacion_final < 6.0){
-    return false;
-  }
-  return true;
+void Estudiante::procesar(){
+  // COBEGIN-COEND: T1 (pp) y T2 (pa) escriben variables distintas y leen
+  // datos distintos, por lo que son independientes.
+  std::thread t1([this]() { calcularPromedioParciales(); });
+  std::thread t2([this]() { calcularPromedioTareas(); });
+  t1.join();
+  t2.join();
+
+  // Punto de union: cf depende de pp y pa.
+  calcularCalificacionFinal();
+
+  // T4: aprobado depende de los tres parciales y de cf.
+  aprobado = (calificacion_parcial1 >= 6.0 &&
+              calificacion_parcial2 >= 6.0 &&
+              calificacion_parcial3 >= 6.0 &&
+              calificacion_final >= 6.0);
+}
+
+bool Estudiante::aprobo() const {
+  return aprobado;
 }
 
 void Estudiante::mostrarInformacion(){
-  std::cout << "[Nombre: " << nombre << ", Edad: " << edad << ", Calificacion Final: " << calcularCalificacionFinal() << "]" << std::endl;
+  std::cout << "[Nombre: " << nombre << ", Edad: " << edad
+            << ", Calificacion Final: " << calificacion_final << "]" << std::endl;
 }

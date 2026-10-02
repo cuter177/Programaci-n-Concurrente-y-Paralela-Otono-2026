@@ -18,6 +18,7 @@ class Estudiante {
     double promedio_tareas;
 
     double calificacion_final;
+    bool aprobado;
 
   public:
     Estudiante(std::string nombre, int edad);
@@ -44,13 +45,15 @@ class Estudiante {
 
     void calcularPromedioParciales();
     void calcularPromedioTareas();
-    double calcularCalificacionFinal(); 
+    double calcularCalificacionFinal();
 
-    bool aprobo();
+    // Ejecuta el COBEGIN-COEND interno (pp y pa en paralelo), calcula cf y
+    // determina si el estudiante aprobo.
+    void procesar();
+
+    bool aprobo() const;
 
     void mostrarInformacion();
 };
 
-
 #endif // !ESTUDIANTE_H
-

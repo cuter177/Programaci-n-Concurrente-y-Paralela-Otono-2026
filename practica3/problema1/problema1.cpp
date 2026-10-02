@@ -1,72 +1,45 @@
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
-#include <pthread.h>
+#include <thread>
+#include <vector>
 
-#define MAX_TAREAS 4
-
-typedef struct {
-    const char **src, **dst;
-    int lo, mid, hi;
-} Tarea;
-
-static int cmp(const void *a, const void *b) {
-    return strcmp(*(char *const *)a, *(char *const *)b);
+// cmp-exch(A[i], A[i+1]): intercambia la pareja si estan desordenados.
+// Cada tarea toca indices disjuntos dentro de una misma fase, por lo que
+// cumple las condiciones de Bernstein y no requiere exclusion mutua.
+static void cmp_exch(const char **A, int i) {
+    if (strcmp(A[i], A[i + 1]) > 0) {
+        const char *tmp = A[i];
+        A[i] = A[i + 1];
+        A[i + 1] = tmp;
+    }
 }
 
-static void mezclar(const char **src, int lo, int mid, int hi, const char **dst) {
-    int i = lo, j = mid, k = lo;
-    while (i < mid && j < hi)
-        dst[k++] = (strcmp(src[i], src[j]) <= 0) ? src[i++] : src[j++];
-    while (i < mid) dst[k++] = src[i++];
-    while (j < hi)  dst[k++] = src[j++];
+// COBEGIN-COEND de una fase: lanza en paralelo las parejas (inicio, inicio+1),
+// (inicio+2, inicio+3), ... y espera a que todas terminen antes de continuar.
+// La barrera de fin (COEND) respeta la dependencia RAW entre fases.
+static void fase(const char **A, int n, int inicio) {
+    std::vector<std::thread> tareas;
+    for (int i = inicio; i + 1 < n; i += 2)
+        tareas.emplace_back(cmp_exch, A, i);
+    for (std::thread &t : tareas)
+        t.join();
 }
 
-static void *ejecutar(void *arg) {
-    Tarea *t = (Tarea *)arg;
-    if (t->mid < 0)
-        qsort(t->src + t->lo, t->hi - t->lo, sizeof(char *), cmp);
-    else
-        mezclar(t->src, t->lo, t->mid, t->hi, t->dst);
-    return NULL;
-}
-
-static void cobegin_coend(Tarea *t, int n) {
-    pthread_t h[MAX_TAREAS];
-    for (int i = 0; i < n; i++) pthread_create(&h[i], NULL, ejecutar, &t[i]);
-    for (int i = 0; i < n; i++) pthread_join(h[i], NULL);
-}
-
-void ordenar_paralelo(const char **A, int n) {
-    const char **T = (const char **)malloc(n * sizeof(char *));
-    int b0 = 0, b1 = n / 4, b2 = n / 2, b3 = 3 * n / 4, b4 = n;
-
-    Tarea fase1[4] = {
-        {A, NULL, b0, -1, b1}, {A, NULL, b1, -1, b2},
-        {A, NULL, b2, -1, b3}, {A, NULL, b3, -1, b4}
-    };
-    cobegin_coend(fase1, 4);
-
-    Tarea fase2[2] = {
-        {A, T, b0, b1, b2},
-        {A, T, b2, b3, b4}
-    };
-    cobegin_coend(fase2, 2);
-
-    Tarea fase3 = {T, A, b0, b2, b4};
-    ejecutar(&fase3);
-
-    free(T);
+// Ordenamiento por transposicion par-impar.
+static void ordenar_paralelo(const char **A, int n) {
+    for (int f = 0; f < n; f++)
+        fase(A, n, f % 2);
 }
 
 int main(void) {
     const char *A[] = {"mango", "pera", "manzana", "uva", "kiwi", "durazno",
-                 "fresa", "limon", "naranja", "piña", "cereza", "melon",
-                 "sandia", "platano", "guayaba"};
+                       "fresa", "limon", "naranja", "piña", "cereza", "melon",
+                       "sandia", "platano", "guayaba"};
     int n = sizeof(A) / sizeof(A[0]);
 
     ordenar_paralelo(A, n);
 
-    for (int i = 0; i < n; i++) printf("%s\n", A[i]);
+    for (int i = 0; i < n; i++)
+        printf("%s\n", A[i]);
     return 0;
 }
