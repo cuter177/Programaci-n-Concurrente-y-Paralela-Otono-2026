@@ -86,7 +86,7 @@ O_WRONLY, que abre el archivo solo para escritura;
 O_CREAT, que crea el archivo si todavia no existe;
 O_EXCL, que junto con O_CREAT hace que la creacion falle si el archivo ya
 existe.
-El numero 0600 son los permisos del archivo nuevo: el dueno puede leerlo y
+El numero 0600 son los permisos del archivo nuevo: el propietario puede leerlo y
 escribirlo, y los demas no tienen ningun permiso.
 */
 void adquirirCandado(){
@@ -164,8 +164,6 @@ int main(){
             }
             liberarCandado();
 
-            /* Consume de su buffer privado, que es independiente del
-               intermediario. */
             if(n > 0){
                 int item = bufferPropio[0];
                 for(int i = 1; i < n; i++){
@@ -174,7 +172,7 @@ int main(){
                 n--;
                 printf("\t\t[Consumidor] tomo: %d\n", item);
             }
-            usleep(500000);
+          //  usleep(500000);
         }
     }
 
