@@ -131,9 +131,9 @@
       <h2>Agenda</h2>
       <ul>
         <li><span class="highlight">1.</span> El problema: condición de carrera</li>
-        <li><span class="highlight">2.</span> Hilos: flujos de ejecución que comparten memoria</li>
-        <li><span class="highlight">3.</span> Exclusión mutua: mutex y región crítica</li>
-        <li><span class="highlight">4.</span> RAII: liberar el recurso automáticamente</li>
+        <li><span class="highlight">2.</span> Hilos: <code>std::thread</code>, <code>join</code> y <code>detach</code> (cabecera <code>&lt;thread&gt;</code>)</li>
+        <li><span class="highlight">3.</span> Exclusión mutua: <code>mutex</code>, <code>lock</code>/<code>unlock</code> y sintaxis</li>
+        <li><span class="highlight">4.</span> RAII: <code>lock_guard</code> y <code>unique_lock</code> (sintaxis y cabeceras)</li>
         <li><span class="highlight">5.</span> Aplicación: sala de cine 8 × 10</li>
         <li><span class="highlight2">6.</span> <strong>Grafo de precedencia</strong> <span class="tag">énfasis</span></li>
         <li><span class="highlight2">7.</span> <strong>Bloques COBEGIN–COEND</strong> <span class="tag">énfasis</span></li>
@@ -165,47 +165,87 @@
 
     <!-- 4. HILOS -->
     <section>
-      <h2>Hilos: flujos de ejecución</h2>
+      <h2><code>std::thread</code> — crear y esperar hilos</h2>
+      <p style="font-size:0.7em; margin-top:-0.15em;">
+        <span class="tag">#include &lt;thread&gt;</span>
+        Un hilo es un flujo de ejecución <strong>dentro</strong> del proceso que <strong>comparte memoria</strong> con los demás.
+      </p>
       <div class="cols">
-        <div class="col card accent">
-          <h3>Un hilo es…</h3>
-          <p>Un flujo de ejecución <strong>dentro</strong> del mismo proceso.</p>
-          <p>Comparte la memoria con los demás hilos → necesita reglas de acceso.</p>
+        <div class="col" style="flex:1.15;">
+<div class="pre"><span class="cm">#include &lt;thread&gt;   // cabecera de std::thread</span>
+
+<span class="kw">void</span> tarea() { <span class="cm">/* trabajo del hilo */</span> }
+
+std::thread hilo(tarea);    <span class="cm">// crear el hilo</span>
+hilo.join();                <span class="cm">// esperar a que termine</span>
+<span class="cm">// hilo.detach();           // o separarlo (fondo)</span>
+
+<span class="kw">if</span> (hilo.joinable()) {
+    <span class="cm">/* sigue siendo join/detach-able */</span>
+}</div>
         </div>
-        <div class="col card">
-          <h3>Esperar a un hilo</h3>
-          <p><span class="highlight">join()</span> → el principal espera a que termine. <span class="ok">Opción segura.</span></p>
-          <p><span class="bad">detach()</span> → el hilo corre en segundo plano. <span class="bad">Usar con cuidado.</span></p>
+        <div class="col">
+          <div class="card">
+            <h3>join() vs detach()</h3>
+            <ul style="font-size:0.72em;">
+              <li><span class="highlight">join()</span>: el principal espera al hilo. <span class="ok">Opción segura.</span></li>
+              <li><span class="bad">detach()</span>: el hilo corre en segundo plano. <span class="bad">Riesgoso</span> si el <code>main</code> termina antes.</li>
+              <li><code>joinable()</code>: <code>true</code> si aún se puede hacer <code>join</code>/<code>detach</code>.</li>
+            </ul>
+          </div>
         </div>
       </div>
-      <p class="footer-note" style="margin-top:0.8em;">Regla práctica: preferir <code>join()</code> y reservar <code>detach()</code> para tareas de fondo.</p>
+      <p class="footer-note" style="margin-top:0.4em;">Regla práctica: preferir <code>join()</code> y reservar <code>detach()</code> para tareas de fondo.</p>
     </section>
 
     <!-- 5. MUTEX -->
     <section>
-      <h2>Exclusión mutua: el mutex</h2>
+      <h2><code>std::mutex</code> — exclusión mutua</h2>
+      <p style="font-size:0.7em; margin-top:-0.15em;">
+        <span class="tag">#include &lt;mutex&gt;</span>
+        Es como la puerta de un baño: <span class="highlight">solo un hilo entra a la vez</span>.
+      </p>
       <div class="cols">
-        <div class="col card accent">
-          <h3>Idea</h3>
-          <p>Un <strong>mutex</strong> es como la puerta de un baño: <span class="highlight">solo un hilo entra a la vez</span>.</p>
-          <ul class="footer-note" style="font-size:0.75em;">
-            <li><strong>lock():</strong> intenta entrar; si está ocupado, espera.</li>
-            <li><strong>unlock():</strong> sale y deja entrar al siguiente.</li>
-            <li><strong>try_lock():</strong> intenta sin esperar (devuelve sí/no).</li>
-          </ul>
+        <div class="col" style="flex:1.15;">
+<div class="pre"><span class="cm">#include &lt;mutex&gt;</span>
+std::mutex mtx;           <span class="cm">// protege el recurso compartido</span>
+
+mtx.lock();               <span class="cm">// entra; si está ocupado, ESPERA</span>
+<span class="cm">// ---- región crítica ----</span>
+mtx.unlock();             <span class="cm">// sale y deja pasar al siguiente</span>
+
+<span class="kw">if</span> (mtx.try_lock()) {     <span class="cm">// no bloquea: devuelve bool</span>
+    <span class="cm">/* región crítica */</span>
+    mtx.unlock();
+} <span class="kw">else</span> {
+    <span class="cm">/* estaba ocupado: hago otra cosa */</span>
+}</div>
         </div>
-        <div class="col card warn">
-          <h3>Región crítica</h3>
-          <p>El tramo entre <code>lock</code> y <code>unlock</code>: leer y modificar el recurso compartido.</p>
-          <p class="bad">Error típico: olvidar el <code>unlock</code> o salir antes (return / excepción) → <strong>deadlock</strong>.</p>
+        <div class="col">
+          <div class="card accent">
+            <h3>Funciones</h3>
+            <ul style="font-size:0.68em;">
+              <li><code>lock()</code>: adquiere; se <strong>bloquea</strong> si está ocupado.</li>
+              <li><code>unlock()</code>: libera. <strong>¡Siempre debe llamarse!</strong></li>
+              <li><code>try_lock()</code>: intenta sin esperar; devuelve <code>bool</code>.</li>
+            </ul>
+          </div>
+          <div class="card warn" style="margin-top:0.45em;">
+            <h3>Cuidado</h3>
+            <p style="font-size:0.68em;">Olvidar <code>unlock()</code> o salir por <code>return</code>/excepción → <strong>deadlock</strong>.</p>
+          </div>
         </div>
       </div>
+      <p class="footer-note" style="margin-top:0.4em;">Variantes: <code>recursive_mutex</code> (re-bloqueo del mismo hilo) y <code>timed_mutex</code> (<code>try_lock_for</code> / <code>try_lock_until</code>).</p>
     </section>
 
-    <!-- 6. RAII -->
+    <!-- 6. RAII TABLA -->
     <section>
-      <h2>RAII: el unlock automático</h2>
-      <p>Un objeto <span class="highlight">adquiere el recurso al construirse</span> y lo <span class="highlight">libera al destruirse</span>. Así nunca se olvida el <code>unlock</code>.</p>
+      <h2>RAII: el <code>unlock()</code> automático</h2>
+      <p style="font-size:0.75em; margin-top:-0.15em;">
+        <span class="tag">#include &lt;mutex&gt;</span>
+        Un objeto <span class="highlight">adquiere el recurso al construirse</span> y lo <span class="highlight">libera al destruirse</span>.
+      </p>
       <table>
         <tr>
           <th>Herramienta</th>
@@ -232,10 +272,43 @@
           <td>Varios mutex a la vez</td>
         </tr>
       </table>
-      <p class="footer-note" style="margin-top:0.6em;">
-        Estrategias de <code>unique_lock</code>: <strong>defer_lock</strong> (no bloquear aún),
-        <strong>try_to_lock</strong> (intentar sin esperar), <strong>adopt_lock</strong> (mutex ya bloqueado).
-      </p>
+    </section>
+
+    <!-- 6b. RAII SINTAXIS -->
+    <section>
+      <h2>Sintaxis RAII — <code>lock_guard</code> y <code>unique_lock</code></h2>
+      <p style="font-size:0.7em; margin-top:-0.15em;"><span class="tag">#include &lt;mutex&gt;</span></p>
+      <div class="cols">
+        <div class="col" style="flex:1.2;">
+<div class="pre"><span class="cm">// lock_guard: simple y rápido</span>
+{
+    std::lock_guard&lt;std::mutex&gt; lock(mtx);
+    <span class="cm">/* región crítica */</span>
+}   <span class="cm">// destructor → unlock() automático</span>
+
+<span class="cm">// unique_lock: flexible y movible</span>
+std::unique_lock&lt;std::mutex&gt; lock(mtx, std::defer_lock);
+lock.lock();     <span class="cm">// bloqueo cuando yo quiera</span>
+lock.unlock();   <span class="cm">// y libero manualmente si hace falta</span>
+
+<span class="cm">// varios mutex a la vez, sin deadlock</span>
+std::scoped_lock lock(mtxA, mtxB);</div>
+        </div>
+        <div class="col">
+          <div class="card accent">
+            <h3>Estrategias de <code>unique_lock</code></h3>
+            <ul style="font-size:0.7em;">
+              <li><code>defer_lock</code>: no bloquea al construir.</li>
+              <li><code>try_to_lock</code>: intenta sin esperar; revisar <code>owns_lock()</code>.</li>
+              <li><code>adopt_lock</code>: el mutex <strong>ya</strong> está bloqueado.</li>
+            </ul>
+          </div>
+          <div class="card good" style="margin-top:0.45em;">
+            <h3>Ventaja</h3>
+            <p style="font-size:0.7em;">El <code>unlock()</code> ocurre aunque haya <code>return</code> o una excepción.</p>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- 7. PROBLEMA DEL CINE -->
@@ -460,6 +533,30 @@ mostrar la sala</div>
         Los clientes del COBEGIN son los nodos paralelos del grafo; la región crítica es el nodo que los
         <strong>serializa</strong>; el COEND corresponde al <strong>join</strong> del grafo.
       </p>
+    </section>
+
+    <!-- 14b. TABLA FUNCIONES Y CABECERAS -->
+    <section>
+      <h2>Funciones, clases y cabeceras</h2>
+      <table style="font-size:0.5em;">
+        <tr><th>Función / clase</th><th>Cabecera</th><th>Qué hace</th></tr>
+        <tr><td><code>std::thread</code></td><td><code>&lt;thread&gt;</code></td><td>Crea un hilo de ejecución</td></tr>
+        <tr><td><code>.join()</code></td><td><code>&lt;thread&gt;</code></td><td>Espera a que el hilo termine</td></tr>
+        <tr><td><code>.detach()</code></td><td><code>&lt;thread&gt;</code></td><td>Separa el hilo (corre solo)</td></tr>
+        <tr><td><code>.joinable()</code></td><td><code>&lt;thread&gt;</code></td><td><code>true</code> si se puede hacer join/detach</td></tr>
+        <tr><td><code>std::mutex</code></td><td><code>&lt;mutex&gt;</code></td><td>Exclusión mutua básica</td></tr>
+        <tr><td><code>.lock()</code> / <code>.unlock()</code></td><td><code>&lt;mutex&gt;</code></td><td>Bloquea / libera el recurso</td></tr>
+        <tr><td><code>.try_lock()</code></td><td><code>&lt;mutex&gt;</code></td><td>Intenta sin esperar (<code>bool</code>)</td></tr>
+        <tr><td><code>std::recursive_mutex</code></td><td><code>&lt;mutex&gt;</code></td><td>Re-bloqueo por el mismo hilo</td></tr>
+        <tr><td><code>std::timed_mutex</code></td><td><code>&lt;mutex&gt;</code></td><td><code>try_lock_for</code> / <code>try_lock_until</code></td></tr>
+        <tr><td><code>std::lock_guard</code></td><td><code>&lt;mutex&gt;</code></td><td>RAII simple</td></tr>
+        <tr><td><code>std::unique_lock</code></td><td><code>&lt;mutex&gt;</code></td><td>RAII flexible, movible</td></tr>
+        <tr><td><code>std::scoped_lock</code></td><td><code>&lt;mutex&gt;</code></td><td>RAII para varios mutex (C++17)</td></tr>
+        <tr><td><code>std::lock(a,b)</code></td><td><code>&lt;mutex&gt;</code></td><td>Bloquea varios sin deadlock</td></tr>
+        <tr><td><code>std::defer_lock</code></td><td><code>&lt;mutex&gt;</code></td><td>No bloquear al construir</td></tr>
+        <tr><td><code>std::try_to_lock</code></td><td><code>&lt;mutex&gt;</code></td><td>Intentar sin esperar</td></tr>
+        <tr><td><code>std::adopt_lock</code></td><td><code>&lt;mutex&gt;</code></td><td>Asumir mutex ya bloqueado</td></tr>
+      </table>
     </section>
 
     <!-- 15. CIERRE -->
