@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sincronización de Hilos en C++ — Asignación de Asientos de un Cine</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/black.css" id="theme">
+<style>
+  :root {
+    --accent: #38bdf8;
+    --accent2: #f472b6;
+    --accent3: #facc15;
+    --ok: #4ade80;
+    --bad: #f87171;
+    --muted: #94a3b8;
+  }
+  .reveal {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 30px;
+  }
+  .reveal h1, .reveal h2, .reveal h3 {
+    text-transform: none;
+    letter-spacing: -0.01em;
+    color: #f8fafc;
+    font-weight: 700;
+  }
+  .reveal h1 { font-size: 1.7em; }
+  .reveal h2 { font-size: 1.25em; }
+  .reveal h3 { font-size: 1.0em; color: var(--accent); }
+  .reveal .subtitle { color: var(--muted); font-size: 0.75em; font-weight: 400; }
+  .reveal section { text-align: left; }
+  .reveal .center { text-align: center; }
+
+  .tag {
+    display: inline-block;
+    background: rgba(56,189,248,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(56,189,248,0.5);
+    border-radius: 999px;
+    padding: 0.1em 0.7em;
+    font-size: 0.5em;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .highlight { color: var(--accent); font-weight: 700; }
+  .highlight2 { color: var(--accent2); font-weight: 700; }
+  .highlight3 { color: var(--accent3); font-weight: 700; }
+  .ok { color: var(--ok); font-weight: 700; }
+  .bad { color: var(--bad); font-weight: 700; }
+
+  ul { line-height: 1.45; }
+  li { margin-bottom: 0.35em; }
+
+  .cols { display: flex; gap: 1.2em; align-items: stretch; }
+  .col { flex: 1; }
+  .card {
+    background: rgba(148,163,184,0.09);
+    border: 1px solid rgba(148,163,184,0.25);
+    border-radius: 14px;
+    padding: 0.7em 0.9em;
+  }
+  .card h3 { margin-top: 0; }
+  .card.accent { border-color: rgba(56,189,248,0.6); background: rgba(56,189,248,0.08); }
+  .card.warn { border-color: rgba(248,113,113,0.6); background: rgba(248,113,113,0.08); }
+  .card.good { border-color: rgba(74,222,128,0.6); background: rgba(74,222,128,0.08); }
+
+  table { font-size: 0.62em; width: 100%; border-collapse: collapse; }
+  th, td { padding: 0.4em 0.6em; border-bottom: 1px solid rgba(148,163,184,0.3); text-align: left; }
+  th { color: var(--accent); }
+  .reveal table td.center-cell { text-align: center; }
+
+  code {
+    font-family: "Fira Code", "Cascadia Code", monospace;
+    background: rgba(148,163,184,0.15);
+    border-radius: 5px;
+    padding: 0.05em 0.35em;
+    color: #e2e8f0;
+  }
+
+  .pre {
+    font-family: "Fira Code", "Cascadia Code", ui-monospace, monospace;
+    font-size: 0.6em;
+    line-height: 1.5;
+    background: #0b1220;
+    border: 1px solid rgba(56,189,248,0.3);
+    border-radius: 12px;
+    padding: 0.8em 1em;
+    white-space: pre;
+    overflow: auto;
+  }
+  .pre .kw { color: var(--accent3); font-weight: 700; }
+  .pre .p { color: var(--accent); font-weight: 700; }
+  .pre .cm { color: var(--muted); }
+  .pre .hl { background: rgba(244,114,182,0.22); border-radius: 4px; }
+
+  .divider { text-align: center; }
+  .divider h2 { font-size: 2em; }
+  .divider .tag { font-size: 0.6em; }
+
+  .graph-wrap { text-align: center; }
+  svg text { font-family: "Segoe UI", system-ui, sans-serif; }
+
+  .legend { font-size: 0.6em; color: var(--muted); text-align: center; }
+
+  .reasons li { margin-bottom: 0.6em; }
+  .footer-note { font-size: 0.55em; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="reveal">
+  <div class="slides">
+
+    <!-- 1. PORTADA -->
+    <section class="center">
+      <span class="tag">Concurrencia y Paralelismo</span>
+      <h1>Sincronización de Hilos</h1>
+      <p class="subtitle" style="font-size:0.8em; margin-top:-0.2em;">
+        Asignación de asientos de un cine de 8 × 10
+      </p>
+      <p style="font-size:0.6em; color:var(--muted); margin-top:1.2em;">
+        <span class="highlight">Grafo de precedencia</span> &nbsp;·&nbsp;
+        <span class="highlight2">COBEGIN–COEND</span> &nbsp;·&nbsp;
+        Exclusión mutua con mutex
+      </p>
+    </section>
+
+    <!-- 2. AGENDA -->
+    <section>
+      <h2>Agenda</h2>
+      <ul>
+        <li><span class="highlight">1.</span> El problema: condición de carrera</li>
+        <li><span class="highlight">2.</span> Hilos: flujos de ejecución que comparten memoria</li>
+        <li><span class="highlight">3.</span> Exclusión mutua: mutex y región crítica</li>
+        <li><span class="highlight">4.</span> RAII: liberar el recurso automáticamente</li>
+        <li><span class="highlight">5.</span> Aplicación: sala de cine 8 × 10</li>
+        <li><span class="highlight2">6.</span> <strong>Grafo de precedencia</strong> <span class="tag">énfasis</span></li>
+        <li><span class="highlight2">7.</span> <strong>Bloques COBEGIN–COEND</strong> <span class="tag">énfasis</span></li>
+        <li><span class="highlight">8.</span> Conclusiones y buenas prácticas</li>
+      </ul>
+    </section>
+
+    <!-- 3. CONDICION DE CARRERA -->
+    <section>
+      <h2>El problema: condición de carrera</h2>
+      <p>Dos taquillas venden <strong>el mismo asiento (0,0)</strong>:</p>
+      <div class="cols">
+        <div class="col card">
+          <h3>Taquilla A</h3>
+          <p class="ok">Consulta (0,0) → libre</p>
+          <p class="bad">Vende (0,0)</p>
+        </div>
+        <div class="col card">
+          <h3>Taquilla B</h3>
+          <p class="ok">Consulta (0,0) → libre</p>
+          <p class="bad">Vende (0,0)</p>
+        </div>
+      </div>
+      <p style="margin-top:0.8em;">
+        Resultado: <span class="bad">el asiento se vende dos veces</span>.
+        Varios hilos accedieron al recurso compartido sin coordinarse.
+      </p>
+    </section>
+
+    <!-- 4. HILOS -->
+    <section>
+      <h2>Hilos: flujos de ejecución</h2>
+      <div class="cols">
+        <div class="col card accent">
+          <h3>Un hilo es…</h3>
+          <p>Un flujo de ejecución <strong>dentro</strong> del mismo proceso.</p>
+          <p>Comparte la memoria con los demás hilos → necesita reglas de acceso.</p>
+        </div>
+        <div class="col card">
+          <h3>Esperar a un hilo</h3>
+          <p><span class="highlight">join()</span> → el principal espera a que termine. <span class="ok">Opción segura.</span></p>
+          <p><span class="bad">detach()</span> → el hilo corre en segundo plano. <span class="bad">Usar con cuidado.</span></p>
+        </div>
+      </div>
+      <p class="footer-note" style="margin-top:0.8em;">Regla práctica: preferir <code>join()</code> y reservar <code>detach()</code> para tareas de fondo.</p>
+    </section>
+
+    <!-- 5. MUTEX -->
+    <section>
+      <h2>Exclusión mutua: el mutex</h2>
+      <div class="cols">
+        <div class="col card accent">
+          <h3>Idea</h3>
+          <p>Un <strong>mutex</strong> es como la puerta de un baño: <span class="highlight">solo un hilo entra a la vez</span>.</p>
+          <ul class="footer-note" style="font-size:0.75em;">
+            <li><strong>lock():</strong> intenta entrar; si está ocupado, espera.</li>
+            <li><strong>unlock():</strong> sale y deja entrar al siguiente.</li>
+            <li><strong>try_lock():</strong> intenta sin esperar (devuelve sí/no).</li>
+          </ul>
+        </div>
+        <div class="col card warn">
+          <h3>Región crítica</h3>
+          <p>El tramo entre <code>lock</code> y <code>unlock</code>: leer y modificar el recurso compartido.</p>
+          <p class="bad">Error típico: olvidar el <code>unlock</code> o salir antes (return / excepción) → <strong>deadlock</strong>.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. RAII -->
+    <section>
+      <h2>RAII: el unlock automático</h2>
+      <p>Un objeto <span class="highlight">adquiere el recurso al construirse</span> y lo <span class="highlight">libera al destruirse</span>. Así nunca se olvida el <code>unlock</code>.</p>
+      <table>
+        <tr>
+          <th>Herramienta</th>
+          <th class="center-cell">Bloquea al crear</th>
+          <th>Se libera</th>
+          <th>Cuándo usarla</th>
+        </tr>
+        <tr>
+          <td><code>lock_guard</code></td>
+          <td class="center-cell">Sí</td>
+          <td>Al salir del bloque</td>
+          <td>Caso simple y rápido</td>
+        </tr>
+        <tr>
+          <td><code>unique_lock</code></td>
+          <td class="center-cell">Configurable</td>
+          <td>Al salir del bloque</td>
+          <td>Cuando se necesita flexibilidad</td>
+        </tr>
+        <tr>
+          <td><code>scoped_lock</code></td>
+          <td class="center-cell">Sí (varios)</td>
+          <td>Al salir del bloque</td>
+          <td>Varios mutex a la vez</td>
+        </tr>
+      </table>
+      <p class="footer-note" style="margin-top:0.6em;">
+        Estrategias de <code>unique_lock</code>: <strong>defer_lock</strong> (no bloquear aún),
+        <strong>try_to_lock</strong> (intentar sin esperar), <strong>adopt_lock</strong> (mutex ya bloqueado).
+      </p>
+    </section>
+
+    <!-- 7. PROBLEMA DEL CINE -->
+    <section>
+      <h2>El problema del cine</h2>
+      <p>Sala de <strong>8 × 10</strong>. Al asignar un asiento se registra <strong>nombre y edad</strong>.</p>
+      <div class="cols">
+        <div class="col card accent">
+          <h3>Operaciones</h3>
+          <ul style="font-size:0.85em;">
+            <li>Asignar asiento (solo si está libre)</li>
+            <li>Liberar asiento</li>
+            <li>Buscar por asiento / por nombre</li>
+            <li>Mostrar la sala</li>
+          </ul>
+        </div>
+        <div class="col card">
+          <h3>Regla de oro</h3>
+          <p>Proteger con el <strong>mismo mutex</strong> todas las lecturas <em>y</em> escrituras del recurso compartido.</p>
+          <p class="footer-note" style="font-size:0.85em;">Si solo se protegen las escrituras, la carrera continúa.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. DIVISOR GRAFO -->
+    <section class="divider center" data-background-color="#0b1220">
+      <span class="tag">Énfasis</span>
+      <h2>Grafo de <span class="highlight">precedencia</span></h2>
+      <p class="subtitle">Quién debe esperar a quién antes de avanzar</p>
+    </section>
+
+    <!-- 9. GRAFO SVG -->
+    <section>
+      <h2 style="margin-bottom:0.1em;">Grafo de precedencia</h2>
+      <div class="graph-wrap">
+      <svg viewBox="0 0 900 640" width="100%" style="max-height:520px;">
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3"
+                  orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,6 L9,3 z" fill="#64748b"/>
+          </marker>
+        </defs>
+
+        <!-- Inicio -->
+        <rect x="320" y="14" width="260" height="56" rx="12" fill="rgba(56,189,248,0.12)" stroke="#38bdf8" stroke-width="2"/>
+        <text x="450" y="39" fill="#e2e8f0" font-size="17" text-anchor="middle" font-weight="600">Inicio</text>
+        <text x="450" y="58" fill="#94a3b8" font-size="13" text-anchor="middle">inicializar sala y mutex</text>
+
+        <!-- Clientes -->
+        <g fill="rgba(148,163,184,0.12)" stroke="#94a3b8" stroke-width="2">
+          <rect x="30"  y="150" width="130" height="52" rx="10"/>
+          <rect x="240" y="150" width="130" height="52" rx="10"/>
+          <rect x="450" y="150" width="130" height="52" rx="10"/>
+          <rect x="660" y="150" width="130" height="52" rx="10"/>
+        </g>
+        <g fill="#e2e8f0" font-size="16" text-anchor="middle" font-weight="600">
+          <text x="95"  y="181">Cliente 1</text>
+          <text x="305" y="181">Cliente 2</text>
+          <text x="515" y="181">Cliente 3</text>
+          <text x="725" y="181">Cliente N</text>
+        </g>
+        <g stroke="#64748b" stroke-width="1.6" marker-end="url(#arrow)" fill="none">
+          <path d="M400,70 L95,150"/>
+          <path d="M430,70 L305,150"/>
+          <path d="M470,70 L515,150"/>
+          <path d="M500,70 L725,150"/>
+        </g>
+        <text x="450" y="125" fill="#94a3b8" font-size="12" text-anchor="middle">tareas paralelas (COBEGIN)</text>
+
+        <!-- Region critica -->
+        <path d="M95,202 L95,300 L360,300" stroke="#f472b6" stroke-width="1.8" fill="none" marker-end="url(#arrow)"/>
+        <path d="M305,202 L305,300" stroke="#f472b6" stroke-width="1.8" fill="none" marker-end="url(#arrow)"/>
+        <path d="M515,202 L515,300" stroke="#f472b6" stroke-width="1.8" fill="none" marker-end="url(#arrow)"/>
+        <path d="M725,202 L725,300 L540,300" stroke="#f472b6" stroke-width="1.8" fill="none" marker-end="url(#arrow)"/>
+
+        <rect x="150" y="300" width="600" height="74" rx="12" fill="rgba(244,114,182,0.12)" stroke="#f472b6" stroke-width="2.5"/>
+        <text x="450" y="328" fill="#f8fafc" font-size="17" text-anchor="middle" font-weight="700">REGIÓN CRÍTICA  (mutex mtx)</text>
+        <text x="450" y="352" fill="#f9a8d4" font-size="13" text-anchor="middle" font-family="monospace">lock() → leer / escribir asientos → unlock()</text>
+
+        <!-- Joins -->
+        <g stroke="#64748b" stroke-width="1.6" marker-end="url(#arrow)" fill="none">
+          <path d="M300,374 L95,440"/>
+          <path d="M380,374 L305,440"/>
+          <path d="M520,374 L515,440"/>
+          <path d="M600,374 L725,440"/>
+        </g>
+        <g fill="rgba(148,163,184,0.12)" stroke="#94a3b8" stroke-width="2">
+          <rect x="35"  y="440" width="120" height="46" rx="10"/>
+          <rect x="245" y="440" width="120" height="46" rx="10"/>
+          <rect x="455" y="440" width="120" height="46" rx="10"/>
+          <rect x="665" y="440" width="120" height="46" rx="10"/>
+        </g>
+        <g fill="#e2e8f0" font-size="15" text-anchor="middle" font-weight="600">
+          <text x="95"  y="469">join(1)</text>
+          <text x="305" y="469">join(2)</text>
+          <text x="515" y="469">join(3)</text>
+          <text x="725" y="469">join(N)</text>
+        </g>
+
+        <!-- Consolidacion -->
+        <g stroke="#64748b" stroke-width="1.6" marker-end="url(#arrow)" fill="none">
+          <path d="M95,486 L95,560 L330,560"/>
+          <path d="M305,486 L305,560"/>
+          <path d="M515,486 L515,560"/>
+          <path d="M725,486 L725,560 L570,560"/>
+        </g>
+        <rect x="300" y="560" width="300" height="64" rx="12" fill="rgba(74,222,128,0.12)" stroke="#4ade80" stroke-width="2.5"/>
+        <text x="450" y="586" fill="#f8fafc" font-size="17" text-anchor="middle" font-weight="700">Consolidación final</text>
+        <text x="450" y="608" fill="#86efac" font-size="13" text-anchor="middle">mostrar / buscar (COEND → luego)</text>
+      </svg>
+      </div>
+      <p class="legend" style="margin-top:0;">Las flechas son <strong>precedencias</strong>: quién debe ocurrir antes.</p>
+    </section>
+
+    <!-- 10. LECTURA DEL GRAFO -->
+    <section>
+      <h2>¿Cómo se lee el grafo?</h2>
+      <ul class="reasons">
+        <li>
+          <span class="highlight3">Inicio → Clientes:</span> tras inicializar la sala y el mutex,
+          los clientes se lanzan <strong>en paralelo</strong>.
+        </li>
+        <li>
+          <span class="highlight2">Clientes → Región crítica:</span> todos deben pasar
+          <strong>uno a uno</strong> por el mutex. Esa restricción <em>serializa</em> el acceso.
+        </li>
+        <li>
+          <span class="highlight">Región crítica → Join:</span> la sincronización no termina
+          hasta que cada hilo libera el mutex.
+        </li>
+        <li>
+          <span class="ok">Join → Consolidación:</span> mostrar y buscar solo ocurren
+          <strong>cuando todos los hilos terminaron</strong>.
+        </li>
+      </ul>
+      <p class="footer-note">Resumen: <strong>paralelismo</strong> en los clientes, <strong>serialización</strong> en la región crítica, <strong>barrera</strong> en el join.</p>
+    </section>
+
+    <!-- 11. DIVISOR COBEGIN -->
+    <section class="divider center" data-background-color="#0b1220">
+      <span class="tag">Énfasis</span>
+      <h2>Bloques <span class="highlight2">COBEGIN</span>–<span class="highlight2">COEND</span></h2>
+      <p class="subtitle">Todo lo que está entre ellos se ejecuta en paralelo</p>
+    </section>
+
+    <!-- 12. COBEGIN-COEND notacion -->
+    <section>
+      <h2>La notación COBEGIN–COEND</h2>
+      <div class="cols">
+        <div class="col" style="flex:1.25;">
+<div class="pre"><span class="cm">// inicialización secuencial (FUERA del COBEGIN)</span>
+inicializar sala 8 × 10 y su mutex
+
+<span class="kw">COBEGIN</span>
+   <span class="p">P1 :</span> reservar(Ana,   0, 0)   <span class="cm">// compiten por (0,0)</span>
+   <span class="p">P2 :</span> reservar(Luis,  0, 0)   <span class="cm">// compiten por (0,0)</span>
+   <span class="p">P3 :</span> reservar(María, 0, 0)   <span class="cm">// compiten por (0,0)</span>
+   <span class="p">P4 :</span> reservar(Pedro, 2, 4)
+   <span class="p">P5 :</span> reservar(Sofía, 3, 7)
+<span class="kw">COEND</span>
+
+<span class="cm">// fase secuencial posterior (tras COEND)</span>
+liberar (2,4)
+buscar por asiento (0,0)
+buscar por nombre "Sofía"
+mostrar la sala</div>
+        </div>
+        <div class="col">
+          <div class="card accent">
+            <h3>Lectura</h3>
+            <ul style="font-size:0.8em;">
+              <li><span class="highlight3">Fuera</span> del bloque → ejecución <strong>secuencial</strong>.</li>
+              <li><span class="highlight2">Dentro</span> → todas las tareas <strong>en paralelo</strong>.</li>
+              <li><strong>COBEGIN</strong> marca el inicio del paralelismo.</li>
+              <li><strong>COEND</strong> marca la barrera: se espera a que <em>todas</em> terminen.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 13. COBEGIN-COEND competencia -->
+    <section>
+      <h2>COBEGIN–COEND y exclusión mutua</h2>
+      <p>P1, P2 y P3 atacan <strong>el mismo asiento (0,0)</strong> al mismo tiempo:</p>
+      <div class="cols">
+        <div class="col card">
+          <h3>Sin mutex</h3>
+          <p class="bad">El asiento se vende varias veces.</p>
+          <p class="footer-note" style="font-size:0.8em;">Condición de carrera.</p>
+        </div>
+        <div class="col card good">
+          <h3>Con mutex</h3>
+          <p><span class="ok">Solo uno gana.</span></p>
+          <p class="footer-note" style="font-size:0.8em;">Los demás reciben “no disponible”.</p>
+        </div>
+      </div>
+      <p style="margin-top:0.8em;">
+        El bloque paralelo <strong>se comporta igual</strong> de rápido, pero el mutex
+        garantiza el resultado: <span class="highlight">Ganador: Ana → (0,0)</span>;
+        Luis y María rechazados.
+      </p>
+    </section>
+
+    <!-- 14. RELACION GRAFO <-> COBEGIN -->
+    <section>
+      <h2>Grafo ↔ COBEGIN–COEND</h2>
+      <div class="cols">
+        <div class="col card accent">
+          <h3>Grafo de precedencia</h3>
+          <p style="font-size:0.85em;">Describe <strong>dependencias</strong> y el <strong>orden obligatorio</strong> entre tareas.</p>
+        </div>
+        <div class="col card" style="display:flex; align-items:center; justify-content:center;">
+          <span style="font-size:1.6em;">⇄</span>
+        </div>
+        <div class="col card accent">
+          <h3>COBEGIN–COEND</h3>
+          <p style="font-size:0.85em;">Describe el <strong>paralelismo</strong> y sus <strong>barreras</strong> de inicio y fin.</p>
+        </div>
+      </div>
+      <p class="footer-note" style="margin-top:0.8em; font-size:0.8em;">
+        Los clientes del COBEGIN son los nodos paralelos del grafo; la región crítica es el nodo que los
+        <strong>serializa</strong>; el COEND corresponde al <strong>join</strong> del grafo.
+      </p>
+    </section>
+
+    <!-- 15. CIERRE -->
+    <section>
+      <h2>Conclusiones y buenas prácticas</h2>
+      <ul>
+        <li>Los hilos <strong>comparten memoria</strong>: hay que sincronizarlos.</li>
+        <li><span class="highlight">join()</span> espera; <span class="bad">detach()</span> separa (usar con mucho cuidado).</li>
+        <li>El <strong>mutex</strong> protege la <strong>región crítica</strong>.</li>
+        <li><span class="highlight2">RAII</span> (<code>lock_guard</code>, <code>unique_lock</code>, <code>scoped_lock</code>) libera el recurso solo.</li>
+        <li><strong>Grafo de precedencia</strong>: define el orden; <strong>COBEGIN–COEND</strong>: define el paralelismo.</li>
+        <li>Proteger con el mismo mutex <strong>todas</strong> las lecturas y escrituras.</li>
+      </ul>
+    </section>
+
+    <!-- 16. GRACIAS -->
+    <section class="center">
+      <h1>Gracias</h1>
+      <p class="subtitle">¿Preguntas?</p>
+      <p class="footer-note" style="margin-top:2em;">Sincronización de hilos — Asignación de asientos de un cine</p>
+    </section>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/notes/notes.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    slideNumber: 'c/t',
+    transition: 'slide',
+    width: 1200,
+    height: 750,
+    margin: 0.06,
+    plugins: [ RevealNotes ]
+  });
+</script>
+</body>
+</html>
