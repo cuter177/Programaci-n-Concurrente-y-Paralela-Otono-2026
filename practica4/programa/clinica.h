@@ -18,6 +18,10 @@ class Clinica {
     void guardarArchivo(const std::string& ruta);
     void setFechaSistema();
 
+    // Helpers internos
+    int buscarPorNombreSinLock(const std::string& nombre);
+    int buscarPorFechaNSinLock(int dia, int mes, int anio);
+
   public:
     Clinica();
     ~Clinica();
@@ -31,6 +35,9 @@ class Clinica {
     int buscarPorNombre(const std::string& nombre);
 
     int buscarPorFechaN(int dia, int mes, int anio);
+
+    // Devuelve el id del paciente en esa posicion del arreglo, o -1 si el indice esta fuera de rango.
+    int idEnIndice(int indice);
 
     // Registra la aplicacion de una vacuna al paciente con ese id.
     // Devuelve true si encontro al paciente, false en caso contrario.
@@ -46,8 +53,6 @@ class Clinica {
 
     bool eliminarVacunaDePaciente(const std::string& nombrePaciente, const std::string& nombreVacuna);
     bool modificarVacunaDePaciente(const std::string& nombrePaciente, const std::string& nombreVacuna, const Vacuna& nueva);
-    bool eliminarVacunaDePaciente(int dia, int mes, int anio, const std::string& nombreVacuna);
-    bool modificarVacunaDePaciente(int dia, int mes, int anio, const std::string& nombreVacuna, const Vacuna& nueva);
 
     void mostrarNombresAlfabetico();
 

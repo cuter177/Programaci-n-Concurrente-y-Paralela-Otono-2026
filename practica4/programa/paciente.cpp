@@ -10,12 +10,12 @@
 int Paciente::contadorId = 0; // se inicializa una sola vez para toda la clase
 
 Paciente::Paciente(std::string nombre, int dia, int mes, int anio){
-  this->id = ++Paciente::contadorId; // cada paciente recibe un id unico
+  this->id = Paciente::contadorId++; // primer id = 0, luego 1, 2, ...
   setNombre(nombre);
   setFechaNacimiento(dia,mes,anio);
 }
 
-int Paciente::getId(){
+int Paciente::getId() const{
   return id;
 }
 
@@ -23,7 +23,7 @@ void Paciente::setNombre(std::string nombre){
   this->nombre = nombre;
 }
 
-std::string Paciente::getNombre(){
+std::string Paciente::getNombre() const{
   return nombre;
 }
 
@@ -37,7 +37,7 @@ void Paciente::setFechaNacimiento(int dia, int mes, int anio){
   fechaNacimiento.tm_year = anio - 1900;
 }
 
-std::tm Paciente::getFechaNacimiento(){
+std::tm Paciente::getFechaNacimiento() const{
   return fechaNacimiento;
 }
 
@@ -49,11 +49,11 @@ void Paciente::setVacunasProximas(std::vector<Vacuna> vacunasProximas){
   this->vacunasProximas = vacunasProximas;
 }
 
-std::vector<Vacuna> Paciente::getVacunasRecibidas(){
+std::vector<Vacuna> Paciente::getVacunasRecibidas() const{
   return vacunasRecibidas;
 }
 
-std::vector<Vacuna> Paciente::getVacunasProximas(){
+std::vector<Vacuna> Paciente::getVacunasProximas() const{
   return vacunasProximas;
 }
 
@@ -65,37 +65,29 @@ void Paciente::agregarVacunaProxima(const Vacuna& vacuna){
   vacunasProximas.push_back(vacuna);
 }
 
-void Paciente::eliminarVacunaRecibida(const std::string& nombreVacuna){
+bool Paciente::eliminarVacunaRecibida(const std::string& nombreVacuna){
   for (size_t i = 0; i < vacunasRecibidas.size(); ++i){
     if (Utils::sonIguales(vacunasRecibidas[i].getNombre(), nombreVacuna)) {
       vacunasRecibidas.erase(vacunasRecibidas.begin() + i);
-      return;
-    }
-  }
-}
-
-void Paciente::eliminarVacunaProxima(const std::string& nombreVacuna){
-  for (size_t i = 0; i < vacunasProximas.size(); ++i){
-    if (Utils::sonIguales(vacunasProximas[i].getNombre(), nombreVacuna)) {
-      vacunasProximas.erase(vacunasProximas.begin() + i);
-      return;
-    }
-  }
-}
-
-bool Paciente::modificarVacunaRecibida(const std::string& nombreBuscado, const Vacuna& nueva){
-  for (size_t i = 0; i < vacunasRecibidas.size(); ++i){
-    if (Utils::sonIguales(vacunasRecibidas[i].getNombre(), nombreBuscado)) {
-      vacunasRecibidas[i] = nueva;
       return true;
     }
   }
   return false;
 }
 
-bool Paciente::modificarVacunaRecibida(const std::tm& fechaBuscada, const Vacuna& nueva){
+bool Paciente::eliminarVacunaProxima(const std::string& nombreVacuna){
+  for (size_t i = 0; i < vacunasProximas.size(); ++i){
+    if (Utils::sonIguales(vacunasProximas[i].getNombre(), nombreVacuna)) {
+      vacunasProximas.erase(vacunasProximas.begin() + i);
+      return true;
+    }
+  }
+  return false;
+}
+
+bool Paciente::modificarVacunaRecibida(const std::string& nombreBuscado, const Vacuna& nueva){
   for (size_t i = 0; i < vacunasRecibidas.size(); ++i){
-    if (aTimeT(vacunasRecibidas[i].getFechaAplicacion()) == aTimeT(fechaBuscada)) {
+    if (Utils::sonIguales(vacunasRecibidas[i].getNombre(), nombreBuscado)) {
       vacunasRecibidas[i] = nueva;
       return true;
     }
@@ -113,17 +105,7 @@ bool Paciente::modificarVacunaProxima(const std::string& nombreBuscado, const Va
   return false;
 }
 
-bool Paciente::modificarVacunaProxima(const std::tm& fechaBuscada, const Vacuna& nueva){
-  for (size_t i = 0; i < vacunasProximas.size(); ++i){
-    if (aTimeT(vacunasProximas[i].getFechaAplicacion()) == aTimeT(fechaBuscada)) {
-      vacunasProximas[i] = nueva;
-      return true;
-    }
-  }
-  return false;
-}
-
-std::string Paciente::toString(){
+std::string Paciente::toString() const{
   std::ostringstream os;
   char buffer[11];
   std::strftime(buffer, sizeof(buffer), "%d/%m/%Y", &fechaNacimiento);

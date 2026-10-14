@@ -3,7 +3,7 @@
 
 namespace {
   const int ANIO_MIN = 1900;
-  const int ANIO_MAX = 2026;
+  const int ANIO_MAX = 2100;
   const int SEG_POR_DIA = 60 * 60 * 24;
 }
 

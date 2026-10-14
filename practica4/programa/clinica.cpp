@@ -1,12 +1,16 @@
 #include "clinica.h"
 #include "fecha.h"
+#include <algorithm>
+#include <cstddef>
+#include <iostream>
 #include <string>
 #include <fstream>
-#include <sstream>
 #include <stdexcept>
 #include <ctime>
 #include <vector>
 #include "paciente.h"
+#include "utils.h"
+#include "vacuna.h"
 #include <mutex>
 
 namespace  {
@@ -56,7 +60,7 @@ namespace  {
         if (recibidas) p.agregarVacunaRecibida(v);
         else           p.agregarVacunaProxima(v);
       } catch (const std::invalid_argument&) {
-        // vacuna con fecha fuera de rango: se ignora
+        // vacuna invalida
       }
     }
   }
@@ -103,6 +107,25 @@ void Clinica::setFechaSistema(){
 
 }
 
+void Clinica::setFechaActual(int dia, int mes, int anio){
+
+  if(!esFechaValida(dia, mes, anio)){
+    throw std::invalid_argument("Fecha actual Invalida"); 
+  }
+
+  fechaActual = {};
+  fechaActual.tm_mday = dia;
+  fechaActual.tm_mon = mes - 1;
+  fechaActual.tm_year = anio - 1900;
+
+}
+
+std::tm Clinica::getFechaActual(){
+  return fechaActual;
+}
+
+  
+
 void Clinica::cargarArchivo(const std::string& ruta){
   std::ifstream archivo(ruta);
 
@@ -146,7 +169,320 @@ void Clinica::guardarArchivo(const std::string& ruta){
   if (!archivo.is_open()) return;
 
   for (size_t i = 0; i < pacientes.size(); ++i){
-    archivo << formatoPaciente(pacientes[i]) << "\n"; // linea por linea
+    archivo << formatoPaciente(pacientes[i]) << "\n";
   }
 }
 
+
+void Clinica::agregarPaciente(const Paciente& paciente){
+  std::lock_guard<std::mutex> lock(mtx);
+  // Inserta ordenado por id para que Utils::busquedaBinaria siga siendo valida
+  // aunque los pacientes se registren desde varios hilos.
+  int nuevoId = paciente.getId();
+  size_t pos = 0;
+  while (pos < pacientes.size() && pacientes[pos].getId() < nuevoId)
+    ++pos;
+  pacientes.insert(pacientes.begin() + pos, paciente);
+}
+
+int Clinica::buscarPorId(int idPaciente){
+  std::lock_guard<std::mutex> lock(mtx);
+  return Utils::busquedaBinaria(idPaciente, pacientes);
+}
+
+int Clinica::buscarPorNombreSinLock(const std::string& nombre){
+  for (size_t i = 0; i < pacientes.size(); ++i){
+    if (Utils::sonIguales(pacientes[i].getNombre(), nombre))
+      return static_cast<int>(i);
+  }
+  return -1;
+}
+
+int Clinica::buscarPorNombre(const std::string& nombre){
+  std::lock_guard<std::mutex> lock(mtx);
+  return buscarPorNombreSinLock(nombre);         
+}
+
+int Clinica::buscarPorFechaNSinLock(int dia, int mes, int anio){
+  for (size_t i = 0; i < pacientes.size(); ++i){
+    std::tm f = pacientes[i].getFechaNacimiento();
+    // ojo: tm_mon va de 0 a 11 y tm_year desde 1900
+    if (f.tm_mday == dia && f.tm_mon == mes - 1 && f.tm_year == anio - 1900)
+      return static_cast<int>(i);
+  }
+  return -1;
+}
+
+int Clinica::buscarPorFechaN(int dia, int mes, int anio){
+  std::lock_guard<std::mutex> lock(mtx);
+  return buscarPorFechaNSinLock(dia, mes, anio);
+}
+
+int Clinica::idEnIndice(int indice){
+  std::lock_guard<std::mutex> lock(mtx);
+  if (indice < 0 || static_cast<size_t>(indice) >= pacientes.size())
+    return -1;
+  return pacientes[indice].getId();
+}
+
+bool Clinica::registrarAplicacionVacuna(int idPaciente, const Vacuna& vacuna){
+  std::lock_guard<std::mutex> lock(mtx);
+  int i = Utils::busquedaBinaria(idPaciente,pacientes);
+
+  if(i >= 0){
+    pacientes[i].agregarVacunaRecibida(vacuna);
+    return true;
+  }
+
+  return false;
+}
+
+bool Clinica::agengarVacunaProxima(int idPaciente, const Vacuna& vacuna){
+  std::lock_guard<std::mutex> lock(mtx);
+  int i = Utils::busquedaBinaria(idPaciente, pacientes);
+
+  if(i >= 0){
+    pacientes[i].agregarVacunaProxima(vacuna);
+    return true;
+  }
+
+  return false;
+}
+
+bool Clinica::eliminarPaciente(int idPaciente){
+  std::lock_guard<std::mutex> lock(mtx);
+  int i = Utils::busquedaBinaria(idPaciente, pacientes);
+
+  if (i < 0) 
+    return false;
+  
+  pacientes.erase(pacientes.begin() + i);
+  return true;
+}
+
+bool Clinica::modificarDatos(int idPaciente, std::string nuevoNomre){
+  std::lock_guard<std::mutex> lock(mtx);
+  int i = Utils::busquedaBinaria(idPaciente, pacientes);
+
+  if(i < 0)
+    return false;
+
+  pacientes[i].setNombre(nuevoNomre);
+  return true;
+}
+
+bool Clinica::modificarDatos(int idPaciente, int dia, int mes, int anio){
+  std::lock_guard<std::mutex> lock(mtx);
+  int i = Utils::busquedaBinaria(idPaciente, pacientes);
+
+  if(i < 0)
+    return false;
+
+  pacientes[i].setFechaNacimiento(dia, mes, anio);
+  return true;
+}
+
+void Clinica::mostrarInfoPaciente(int idPaciente){
+  std::lock_guard<std::mutex> lock(mtx);
+  int i = Utils::busquedaBinaria(idPaciente, pacientes);
+
+  if(i < 0)
+    return;
+
+  std::cout << pacientes[i].toString() << "\n";
+}
+
+
+ bool Clinica::eliminarVacunaDePaciente(const std::string& nombrePaciente, const std::string& nombreVacuna){
+
+   std::lock_guard<std::mutex> lock(mtx);
+   int i = buscarPorNombreSinLock(nombrePaciente);
+
+   if(i < 0)
+     return false;
+
+   pacientes[i].eliminarVacunaRecibida(nombreVacuna);
+   return true;
+ }
+
+ bool Clinica::modificarVacunaDePaciente(const std::string& nombrePaciente, const std::string& nombreVacuna, const Vacuna& nueva){
+   std::lock_guard<std::mutex> lock(mtx);
+   int i = buscarPorNombreSinLock(nombrePaciente);
+
+   if(i < 0)
+     return false;
+
+   pacientes[i].modificarVacunaRecibida(nombreVacuna, nueva);
+   return true;
+ }
+
+ void Clinica::mostrarNombresAlfabetico(){
+   std::lock_guard<std::mutex> lock(mtx);
+
+   std::vector<std::string> nombres;
+
+   for(size_t i = 0; i < pacientes.size(); ++i){
+     nombres.push_back(pacientes[i].getNombre()); 
+   }
+
+   std::sort(nombres.begin(), nombres.end(), [](const std::string& a, const std::string& b){
+       return Utils::aMayusculas(a) < Utils::aMayusculas(b);  
+      });
+
+   for(size_t i = 0; i < nombres.size(); ++i)
+     std::cout << nombres[i] << "\n";
+   
+ }
+
+void Clinica::mostrarTodo5en5(){
+  std::lock_guard<std::mutex> lock(mtx);
+
+  const size_t TAM_PAGINA = 5;
+  for (size_t i = 0; i < pacientes.size(); ++i){
+    std::cout << pacientes[i].toString() << "\n";
+
+    if ((i + 1) % TAM_PAGINA == 0 && i + 1 < pacientes.size()){
+      std::cout << "Presione Enter para continuar...";
+      std::cin.get();
+    }
+  }
+}
+
+void Clinica::buscarRangoEdad(int min, int max){
+  std::lock_guard<std::mutex> lock(mtx);
+
+  std::tm hoy = getFechaActual();
+  std::vector<Paciente> pacientesEnRango;
+
+  for (size_t i = 0; i < pacientes.size(); ++i){
+    int edad = calcularEdad(pacientes[i].getFechaNacimiento(), hoy);
+    if (edad >= min && edad <= max)
+      pacientesEnRango.push_back(pacientes[i]); 
+  }
+
+  std::sort(pacientesEnRango.begin(), pacientesEnRango.end(),
+  [&hoy](const Paciente& a, const Paciente& b){
+    return calcularEdad(a.getFechaNacimiento(), hoy) >
+           calcularEdad(b.getFechaNacimiento(), hoy);
+  });
+
+  for (size_t k = 0; k < pacientesEnRango.size(); ++k)
+    std::cout << pacientesEnRango[k].toString() << "\n";
+}
+
+void Clinica::pacientesConVacunaProxima7Dias(const std::string& nombreVacuna){
+  std::lock_guard<std::mutex> lock(mtx);
+
+  std::tm hoy = getFechaActual();
+  std::vector<std::string> nombres;
+
+  for (size_t i = 0; i < pacientes.size(); ++i){
+    std::vector<Vacuna> proximas = pacientes[i].getVacunasProximas(); 
+    bool aplica = false;
+
+    for (size_t j = 0; j < proximas.size(); ++j){
+      if (!Utils::sonIguales(proximas[j].getNombre(), nombreVacuna))
+        continue;
+
+      long d = diasDiferencia(hoy, proximas[j].getFechaAplicacion());  
+      if (d >= 0 && d <= 7){        // dentro del rango
+        aplica = true;
+        break;     
+      }
+    }
+
+    if (aplica)
+      nombres.push_back(pacientes[i].getNombre());
+  }
+
+  std::sort(nombres.begin(), nombres.end(),
+    [](const std::string& a, const std::string& b){
+      return Utils::aMayusculas(a) < Utils::aMayusculas(b);
+    });
+
+  for (size_t k = 0; k < nombres.size(); ++k)
+    std::cout << nombres[k] << "\n";
+}
+
+ int Clinica::contarVacunasAplicadaSemana(){
+   std::lock_guard<std::mutex> lock(mtx);
+
+   std::tm hoy = getFechaActual();
+   int contador = 0;
+
+   for(size_t i = 0; i < pacientes.size(); ++i){
+     std::vector<Vacuna> recibidas = pacientes[i].getVacunasRecibidas();
+     
+     for(size_t j = 0; j < recibidas.size(); ++j){
+       long d = diasDiferencia(recibidas[j].getFechaAplicacion(), hoy);
+       if(d >= 0 && d <= 7)
+         contador = contador + 1;
+     }
+   }
+   return contador;
+
+ }
+
+int Clinica::contarVacunasdelsiguenteMes(const std::string& nombreVacuna){
+  std::lock_guard<std::mutex> lock(mtx);
+
+  std::tm hoy = getFechaActual();
+
+  std::tm siguiente = hoy;
+  siguiente.tm_mday = 1;             
+  siguiente.tm_mon  = hoy.tm_mon + 1; 
+  std::mktime(&siguiente);
+
+  int contador = 0;
+
+  for (size_t i = 0; i < pacientes.size(); ++i){
+    std::vector<Vacuna> proximas = pacientes[i].getVacunasProximas();
+
+    for (size_t j = 0; j < proximas.size(); ++j){
+
+      if (Utils::sonIguales(proximas[j].getNombre(), nombreVacuna) &&
+          esMismoMes(proximas[j].getFechaAplicacion(), siguiente))
+        contador++;
+    }
+  }
+
+  return contador;
+}
+
+void Clinica::pacientesVacunadosdelMes(){
+  std::lock_guard<std::mutex> lock(mtx);
+
+  std::tm hoy = getFechaActual();
+
+  std::vector<size_t> indices;
+  for (size_t i = 0; i < pacientes.size(); ++i){
+    std::vector<Vacuna> recibidas = pacientes[i].getVacunasRecibidas();
+
+    for (size_t j = 0; j < recibidas.size(); ++j){
+
+      if (esMismoMes(recibidas[j].getFechaAplicacion(), hoy)){
+        indices.push_back(i);
+        break;                       
+      }
+    }
+  }
+
+  std::sort(indices.begin(), indices.end(),
+    [this](size_t a, size_t b){
+      return Utils::aMayusculas(pacientes[a].getNombre()) <
+             Utils::aMayusculas(pacientes[b].getNombre());
+    });
+
+  for (size_t k = 0; k < indices.size(); ++k){
+    size_t i = indices[k];
+    int edad = calcularEdad(pacientes[i].getFechaNacimiento(), hoy);
+
+    std::cout << pacientes[i].getNombre() << " (" << edad << " anios)\n";
+
+    std::vector<Vacuna> recibidas = pacientes[i].getVacunasRecibidas();
+    for (size_t j = 0; j < recibidas.size(); ++j){
+      if (esMismoMes(recibidas[j].getFechaAplicacion(), hoy))
+        std::cout << "  " << recibidas[j].toString() << "\n";
+    }
+  }
+}

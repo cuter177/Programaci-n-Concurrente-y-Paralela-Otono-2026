@@ -1,6 +1,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include "paciente.h"
 #include <string>
 
 // Clase de utilidades reutilizables en todo el programa.
@@ -15,6 +16,8 @@ class Utils {
 
     // Compara dos textos ignorando mayusculas/minusculas.
     static bool sonIguales(const std::string& a, const std::string& b);
+
+    static int busquedaBinaria(int buscado, std::vector<Paciente> pacientes);
 };
 
 #endif // !UTILS_H
