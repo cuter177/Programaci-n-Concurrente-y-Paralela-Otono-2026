@@ -233,29 +233,6 @@ los identificadores que requieren las actualizaciones; y el `COEND` precede a
 las consultas finales. Este análisis evita paralelizar operaciones que todavía
 no tienen los datos necesarios \cite{dijkstra1968,hoare1978}.
 
-\subsection{Alternativas actuales}
-
-\begin{table}[H]
-\centering
-\caption{Alternativas de programación concurrente consideradas.}
-\label{tab:alternativas}
-\begin{tabularx}{\textwidth}{p{3.1cm}YY}
-\toprule
-\textbf{Alternativa} & \textbf{Ventaja} & \textbf{Razón para no usarla como mecanismo principal} \\
-\midrule
-Hilos estándar de C++ & Control explícito del ciclo de vida y sincronización; no requiere un modelo externo. & Es necesario gestionar `join` y proteger manualmente el estado compartido. \\
-OpenMP & Ofrece directivas compactas para bucles y regiones paralelas \cite{openmp52}. & La práctica busca mostrar explícitamente la creación de hilos y la barrera. \\
-Futuros y tareas asíncronas & Simplifican la propagación de resultados y excepciones. & El flujo requiere modificar un objeto común, no una colección de resultados independientes. \\
-Actores o paso de mensajes & Reduce el estado compartido. & Añade una infraestructura mayor que la necesaria para el archivo y el vector de esta práctica. \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-La elección de hilos estándar es, por tanto, didáctica y adecuada al tamaño del
-problema. No se afirma que sea la alternativa más escalable para una clínica
-real; se selecciona porque hace observable la relación entre tareas, mutex y
-barrera.
-
 % ---------------------------------------------------------------
 \section{Análisis y diseño de la solución}
 
