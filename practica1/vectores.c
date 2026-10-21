@@ -1,3 +1,8 @@
+//ALFREDO RAMIREZ CANDIA
+//JULIO CESAR PEREZ FLORES
+//LUIS ANTONIO ISLAS GOMEZ
+//NAVARRO SOTO MARIO ALBERTO
+
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -42,13 +47,16 @@ int main(){
     pid_t pid = fork();
     if(pid == 0){
       C[j] = A[j] + B[j];
+      printf("Proceso hijo %d: %d + %d = %d\n", getpid(), A[j], B[j], C[j]);
       fprintf(Cfile, "%d\n", C[j]);
       fflush(Cfile);
       exit(0);
     }
 
   }
+
   
+  printf("Vector C:\n");
   rewind(Cfile);
   while(fscanf(Cfile, "%d", &var) == 1){
     printf("%d,", var);

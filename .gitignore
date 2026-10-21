@@ -6,3 +6,4 @@ vectores
 *.o
 Si todos tus ejecutables están dentro de una carpeta, por ejemplo bin/:
 bin/
+build/

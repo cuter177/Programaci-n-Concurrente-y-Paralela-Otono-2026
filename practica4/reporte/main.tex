@@ -1,0 +1,763 @@
+\documentclass[12pt,letterpaper]{article}
+
+% ---------------------------------------------------------------
+% Configuración general
+% ---------------------------------------------------------------
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setdefaultlanguage{spanish}
+\setmainfont{Liberation Serif}
+\setmonofont{Liberation Mono}
+
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,calc}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{ragged2e}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{cite}
+
+\definecolor{codegray}{gray}{0.95}
+\definecolor{codegreen}{rgb}{0.0,0.45,0.0}
+\definecolor{codeblue}{rgb}{0.1,0.1,0.6}
+\definecolor{diagramblue}{RGB}{218,232,252}
+\definecolor{diagramgreen}{RGB}{226,239,218}
+\definecolor{diagramorange}{RGB}{252,228,214}
+
+\lstset{
+    backgroundcolor=\color{codegray},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{codeblue}\bfseries,
+    commentstyle=\color{codegreen}\itshape,
+    stringstyle=\color{red!70!black},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    numbersep=8pt,
+    breaklines=true,
+    showstringspaces=false,
+    frame=single,
+    rulecolor=\color{gray!50},
+    tabsize=2,
+    extendedchars=true
+}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!50!black,
+    citecolor=blue!50!black,
+    urlcolor=blue!50!black,
+    pdftitle={Práctica 4: Gestión concurrente de pacientes y vacunas},
+    pdfauthor={Equipo de Programación Concurrente y Paralela}
+}
+
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+
+\title{Práctica 4. Gestión concurrente de pacientes y vacunas}
+\author{Islas Gómez Luis Antonio \and Ramírez Candia Alfredo \and Pérez Flores Julio César \and Navarro Soto Mario Alberto}
+\date{\today}
+
+\begin{document}
+
+% ---------------------------------------------------------------
+% Portada basada en el reporte de referencia del equipo
+% ---------------------------------------------------------------
+\begin{titlepage}
+    \centering
+    \vspace*{0.5cm}
+
+    {\Large\bfseries BENEMÉRITA UNIVERSIDAD AUTÓNOMA DE PUEBLA\par}
+    \vspace{0.4cm}
+    {\large Facultad de Ciencias de la Computación\par}
+    \vspace{1.2cm}
+
+    {\large Programación Concurrente y Paralela\par}
+
+    \vfill
+
+    {\Huge\bfseries Práctica 4\par}
+    \vspace{0.4cm}
+    {\LARGE Gestión concurrente de pacientes y vacunas\par}
+    \vspace{0.3cm}
+    {\large (Segundo parcial)\par}
+
+    \vfill
+
+    {\large\bfseries Equipo:\par}
+    \vspace{0.3cm}
+    Islas Gómez Luis Antonio --- 202372860\par
+    Ramírez Candia Alfredo --- 202375947\par
+    Pérez Flores Julio César --- 202247445\par
+    Navarro Soto Mario Alberto --- 202264602\par
+
+    \vfill
+
+    {\large Docente: Hilda Castillo Zacatelco\par}
+    \vspace{0.6cm}
+    {\large \today\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ---------------------------------------------------------------
+\section{Resumen}
+
+Este reporte documenta el análisis, diseño e implementación de una aplicación
+para administrar pacientes pediátricos y sus vacunas. La información persistente
+se almacena en un archivo de texto, mientras que las operaciones de registro y
+actualización se ejecutan sobre una estructura en memoria. La solución emplea
+hilos de C++ y exclusión mutua para permitir operaciones concurrentes sin
+corromper el vector compartido de pacientes.
+
+Se describen las decisiones tomadas para resolver cada requisito, el modelo de
+dependencias entre tareas, la representación conceptual mediante bloques
+\textsc{cobegin}/\textsc{coend} y las condiciones que justifican la
+sincronización. El código fuente se incluye únicamente en los apéndices; la
+explicación principal utiliza modelos, tablas, diagramas y pseudocódigo.
+
+\noindent\textbf{Palabras clave:} concurrencia, hilos, exclusión mutua, vacunas,
+persistencia, grafo de dependencias, COBEGIN--COEND.
+
+% ---------------------------------------------------------------
+\section{Introducción y objetivo}
+
+La práctica plantea el desarrollo de un sistema para una clínica de medicina
+general que atiende pacientes pediátricos. Cada registro contiene el nombre del
+paciente, su fecha de nacimiento, las vacunas recibidas y las vacunas próximas a
+aplicarse. Al abrir la clínica, los registros deben cargarse desde un archivo;
+al cerrarla, los cambios deben persistirse nuevamente.
+
+El objetivo de esta implementación no es únicamente resolver las consultas de
+la clínica, sino estudiar qué partes del flujo pueden ejecutarse de forma
+concurrente y cuáles deben protegerse. La estrategia adoptada combina un
+vector compartido en memoria, tareas independientes representadas por hilos y
+un mutex que serializa cada operación que modifica o inspecciona dicho vector.
+Esta decisión sigue el principio de que el paralelismo debe aplicarse sobre
+tareas independientes, mientras que el acceso a un estado común debe tener una
+sección crítica bien definida \cite{foster1995,andrewsmultithreaded,herlihy2020}.
+
+\subsection{Objetivos específicos}
+
+\begin{itemize}[leftmargin=1.2cm]
+    \item Modelar pacientes, vacunas y fechas mediante clases separadas.
+    \item Validar fechas y descartar registros de entrada que no cumplan el
+    formato establecido.
+    \item Implementar las operaciones solicitadas sobre pacientes y vacunas.
+    \item Ejecutar altas y actualizaciones independientes mediante hilos.
+    \item Proteger el estado compartido con exclusión mutua.
+    \item Representar el flujo paralelo mediante un grafo de dependencias y
+    pseudocódigo \textsc{cobegin}/\textsc{coend}.
+    \item Verificar la persistencia y la compilación reproducible del sistema.
+\end{itemize}
+
+% ---------------------------------------------------------------
+\section{Descripción del problema}
+
+El archivo de entrada utiliza una línea por paciente y cuatro campos separados
+por punto y coma:
+
+\begin{enumerate}[leftmargin=1.2cm]
+    \item nombre del paciente;
+    \item fecha de nacimiento;
+    \item lista de vacunas recibidas, representadas como pares nombre--fecha;
+    \item lista de vacunas próximas, también representadas como pares
+    nombre--fecha.
+\end{enumerate}
+
+Los campos vacíos son válidos para expresar que un paciente todavía no tiene
+vacunas recibidas o próximas. En cambio, una fecha con formato incorrecto, una
+fecha imposible o un nombre vacío no puede incorporarse al modelo interno. La
+separación entre análisis sintáctico y validación semántica evita que un dato
+mal formado provoque una excepción no controlada durante la carga.
+
+La especificación exige las siguientes operaciones: registrar pacientes,
+registrar vacunas aplicadas, agregar vacunas próximas, eliminar pacientes,
+modificar datos personales, modificar o eliminar vacunas, realizar búsquedas,
+ordenar pacientes, consultar rangos de edad y producir estadísticas temporales.
+Además, el archivo debe mantenerse como punto de partida de las ejecuciones
+posteriores y conservar el orden lógico de los registros.
+
+% ---------------------------------------------------------------
+\section{Estado del arte}
+
+\subsection{Concurrencia, paralelismo y tareas}
+
+La concurrencia describe la composición de varias actividades que pueden estar
+en progreso durante un mismo intervalo; el paralelismo ocurre cuando esas
+actividades se ejecutan físicamente al mismo tiempo en distintos núcleos. La
+diferencia es importante en esta práctica: crear varios hilos expresa
+concurrencia, pero la ganancia de tiempo solo aparece si el hardware y la carga
+permiten ejecutar las tareas en paralelo \cite{andrewsmultithreaded,herlihy2020}.
+
+Foster propone analizar un problema paralelo mediante partición, comunicación,
+aglomeración y mapeo \cite{foster1995}. Aplicado a la clínica, la partición
+consiste en separar altas y actualizaciones por paciente; la comunicación es el
+acceso al objeto `Clinica`; la aglomeración evita crear una tarea para cada
+operación trivial, y el mapeo asigna cada grupo de operaciones a un hilo.
+
+\subsection{Memoria compartida y exclusión mutua}
+
+La solución utiliza memoria compartida dentro del proceso: todos los hilos
+pueden acceder al objeto que contiene el vector de pacientes. Esta estrategia
+es directa, pero introduce condiciones de carrera si dos hilos leen y escriben
+el vector al mismo tiempo. El mutex representa la exclusión mutua: solo un hilo
+puede entrar a la sección crítica protegida en un instante dado.
+
+El uso de `std::lock\_guard` implementa adquisición y liberación con alcance
+automático. Esta propiedad es relevante porque evita dejar el mutex bloqueado
+cuando una función retorna anticipadamente o se produce una excepción. El
+estándar de C++ define estas primitivas como parte de su biblioteca de soporte
+para concurrencia \cite{iso14882,cppreferenceconcurrency}.
+
+\subsection{COBEGIN--COEND y grafos de dependencias}
+
+La notación \textsc{cobegin}/\textsc{coend} expresa un bloque de actividades que
+comienzan de manera concurrente y cuyo final constituye una barrera. Aunque el
+programa se implementa con `std::thread` y `join`, la correspondencia conceptual
+es directa: la creación de hilos equivale al comienzo de las ramas y cada
+operación `join` participa en el `COEND`.
+
+Los grafos de dependencias permiten distinguir precedencias obligatorias de
+actividades independientes. Una arista significa que la tarea destino no puede
+comenzar correctamente hasta que la tarea origen produzca su resultado. En la
+práctica, la carga del archivo precede a todas las operaciones; el alta produce
+los identificadores que requieren las actualizaciones; y el `COEND` precede a
+las consultas finales. Este análisis evita paralelizar operaciones que todavía
+no tienen los datos necesarios \cite{dijkstra1968,hoare1978}.
+
+% ---------------------------------------------------------------
+\section{Análisis y diseño de la solución}
+
+\subsection{Modelo de datos}
+
+El diseño separa las responsabilidades en cuatro entidades principales:
+
+\begin{itemize}[leftmargin=1.2cm]
+    \item \textbf{Paciente:} mantiene un identificador, nombre, fecha de
+    nacimiento y dos colecciones de vacunas.
+    \item \textbf{Vacuna:} mantiene nombre y fecha de aplicación o de próxima
+    aplicación.
+    \item \textbf{Fecha:} concentra validación, diferencia de días, cálculo de
+    edad y comparación de mes.
+    \item \textbf{Clínica:} administra el vector de pacientes, el archivo y el
+    mutex que protege el estado compartido.
+\end{itemize}
+
+La separación evita que las reglas de fechas se repitan en las clases de
+paciente y vacuna. También permite que las consultas temporales utilicen una
+misma definición de edad y de intervalo, lo cual favorece la consistencia de
+los resultados.
+
+\subsection{Carga y validación}
+
+Al construirse la clínica se obtiene la fecha del sistema y se carga el archivo
+de pacientes. Cada línea se recorta, se divide en campos y se valida. Las
+fechas se convierten a la representación `std::tm` solo después de comprobar
+el número de día, el mes, el año y los años bisiestos. Las listas de vacunas se
+procesan por pares; un par incompleto o inválido se omite sin impedir la carga
+de los registros restantes.
+
+Esta política privilegia la disponibilidad de la información válida: un error
+local no invalida todo el archivo. Como contrapartida, el sistema no genera un
+informe detallado de errores de entrada; esta limitación se registra en la
+sección de discusión.
+
+\subsection{Identificadores y orden}
+
+Cada paciente recibe un identificador entero al construirse. Las búsquedas por
+identificador utilizan búsqueda binaria, por lo que el vector se mantiene
+ordenado por dicho identificador al insertar nuevos pacientes. Las búsquedas
+por nombre y fecha recorren el vector porque esos atributos no poseen un índice
+secundario.
+
+El identificador es más apropiado que el índice como referencia concurrente:
+una eliminación puede cambiar las posiciones del vector, pero el identificador
+del paciente permanece estable durante la ejecución.
+
+\subsection{Sincronización}
+
+Las operaciones que acceden a la colección compartida adquieren el mutex de la
+clínica. Esto incluye altas, búsquedas, modificaciones, eliminaciones y
+consultas que recorren las listas. La salida de consola se protege además con
+un mutex independiente para evitar que los mensajes de distintos hilos se
+mezclen.
+
+La regla aplicada es: toda lectura que deba observar un estado coherente y toda
+modificación del vector se ejecutan bajo el mismo protocolo de exclusión. Las
+funciones auxiliares que no toman el mutex solo se llaman desde una función que
+ya lo posee; así se evita intentar adquirir dos veces un mutex no recursivo.
+
+\subsection{Persistencia}
+
+La clínica carga el archivo al iniciar y guarda el estado al destruirse. El
+archivo se reconstruye a partir del vector actual, escribiendo una línea por
+paciente y manteniendo la representación de sus vacunas. La reconstrucción
+evita dejar estados parciales producto de múltiples ediciones y permite que la
+siguiente ejecución utilice el archivo actualizado como punto de partida.
+
+En términos de orden, los registros originales conservan su orden relativo
+porque sus identificadores se asignan durante la carga; los nuevos registros
+reciben identificadores posteriores y se insertan después de los originales.
+
+% ---------------------------------------------------------------
+\section{Diagrama de clases y grafo de dependencias}
+
+\subsection{Diagrama de clases}
+
+La Figura~\ref{fig:clases} muestra la estructura estática de la solución. Se
+representan como clases las entidades principales y como componentes de utilidad
+los archivos que concentran operaciones de fechas y comparación de texto. Este
+diagrama no indica concurrencia: describe qué objetos se relacionan y qué
+responsabilidad tiene cada uno.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=10mm and 12mm,
+    uml/.style={draw, rectangle, align=left, text width=4.2cm, minimum height=1.8cm, font=\scriptsize, inner sep=5pt},
+    utility/.style={draw, dashed, rectangle, align=center, text width=3.3cm, minimum height=1.0cm, font=\small},
+    assoc/.style={-{Latex[length=2mm]}, thick},
+    dep/.style={-{Latex[length=2mm]}, dashed, thick}
+]
+    \node[uml, fill=diagramgreen] (clinica) {
+        \centering\textbf{Clinica}\\[-1mm]
+        \rule{4.0cm}{0.3pt}\\[-1mm]
+        \raggedright\texttt{- pacientes: vector<Paciente>}\\
+        \texttt{- fechaActual: tm}\\
+        \texttt{- mtx: mutex}\\[-1mm]
+        \rule{4.0cm}{0.3pt}\\[-1mm]
+        \texttt{+ agregarPaciente()}\\
+        \texttt{+ buscar / modificar / consultar()}
+    };
+    \node[uml, fill=diagramorange, below left=of clinica] (paciente) {
+        \centering\textbf{Paciente}\\[-1mm]
+        \rule{4.0cm}{0.3pt}\\[-1mm]
+        \raggedright\texttt{- id: int}\\
+        \texttt{- nombre: string}\\
+        \texttt{- fechaNacimiento: tm}\\
+        \texttt{- vacunasRecibidas / próximas}\\[-1mm]
+        \rule{4.0cm}{0.3pt}\\[-1mm]
+        \texttt{+ agregar / modificar / eliminarVacuna()}
+    };
+    \node[uml, fill=diagramorange, below right=of clinica] (vacuna) {
+        \centering\textbf{Vacuna}\\[-1mm]
+        \rule{4.0cm}{0.3pt}\\[-1mm]
+        \raggedright\texttt{- nombre: string}\\
+        \texttt{- fechaAplicacion: tm}\\[-1mm]
+        \rule{4.0cm}{0.3pt}\\[-1mm]
+        \texttt{+ set / get / toString()}
+    };
+    \node[utility, fill=diagramblue, below=of paciente] (fecha) {\textbf{<<utility>> fecha.h}\\validar fecha, calcular edad\\y diferencia de días};
+    \node[utility, fill=diagramblue, below=of vacuna] (utils) {\textbf{<<utility>> Utils}\\comparar texto\\y búsqueda binaria};
+    \draw[assoc] (clinica) -- node[above left, font=\scriptsize] {contiene $0..*$} (paciente);
+    \draw[assoc] (clinica) -- node[above right, font=\scriptsize] {administra} (vacuna);
+    \draw[assoc] (paciente) -- node[above, font=\scriptsize] {contiene $0..*$} (vacuna);
+    \draw[dep] (clinica) -- (fecha);
+    \draw[dep] (clinica) -- (utils);
+    \draw[dep] (paciente) -- (fecha);
+    \draw[dep] (paciente) -- (utils);
+    \draw[dep] (vacuna) -- (fecha);
+\end{tikzpicture}
+\caption{Diagrama de clases y componentes de utilidad.}
+\label{fig:clases}
+\end{figure}
+
+`Clinica` es el punto de entrada de las operaciones y posee el vector compartido
+de pacientes. `Paciente` compone sus vacunas, mientras que las operaciones de
+fecha y texto se reutilizan desde componentes auxiliares. La política de
+concurrencia se concentra en `Clinica`: las clases de dominio no necesitan
+conocer qué hilo las está utilizando.
+
+\subsection{Grafo de dependencias entre tareas y sección crítica}
+
+El grafo de la Figura~\ref{fig:dependencias} representa las dependencias de
+ejecución y el acceso de los hilos a la sección crítica. El recurso compartido
+es el objeto `Clinica`, en particular su vector de pacientes. Las tareas verdes
+de cada bloque pueden ejecutarse concurrentemente; sin embargo, las flechas
+discontinuas muestran que todas deben atravesar la sección crítica protegida por
+`mtx`. Por ello, las tareas son concurrentes en el nivel de planificación, pero
+las modificaciones del vector se serializan una por una dentro del mutex.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    flow/.style={draw, rounded corners, align=center, minimum width=3.0cm, minimum height=0.72cm, font=\small},
+    task/.style={draw, rounded corners, align=center, minimum width=2.35cm, minimum height=0.62cm, font=\scriptsize},
+    resource/.style={draw, very thick, rounded corners, align=center, fill=red!15, minimum width=4.3cm, minimum height=0.9cm, font=\small},
+    arr/.style={-{Latex[length=2mm]}, thick},
+    access/.style={-{Latex[length=2mm]}, dashed, thick, gray!80!black}
+]
+    \node[flow, fill=diagramblue] (load) {Cargar y validar};
+    \node[flow, fill=diagramblue, right=of load] (ids) {Preparar datos\\e identificadores};
+    \node[task, fill=diagramgreen, below left=11mm and 11mm of ids] (a1) {T1 Alta Ana};
+    \node[task, fill=diagramgreen, right=3mm of a1] (a2) {T2 Alta Beto};
+    \node[task, fill=diagramgreen, right=3mm of a2] (a3) {T3 Alta Carla};
+    \node[task, fill=diagramgreen, right=3mm of a3] (a4) {T4 Alta Diego};
+    \node[task, fill=diagramgreen, right=3mm of a4] (a5) {T5 Alta Elena};
+    \node[resource, below=10mm of a3] (cs1) {Sección crítica\\\texttt{Clinica.pacientes + mtx}};
+    \node[flow, fill=diagramgreen, below=9mm of cs1] (join1) {COEND 1 / join};
+    \node[task, fill=diagramgreen, below left=11mm and 12mm of join1] (b1) {T6 Vacunas Ana};
+    \node[task, fill=diagramgreen, right=3mm of b1] (b2) {T7 Vacunas Beto};
+    \node[task, fill=diagramgreen, right=3mm of b2] (b3) {T8 Próxima Carla};
+    \node[task, fill=diagramgreen, below=4mm of b1] (b4) {T9 Próxima Diego};
+    \node[task, fill=diagramgreen, right=3mm of b4] (b5) {T10 Modificar Ana/Beto};
+    \node[task, fill=diagramgreen, right=3mm of b5] (b6) {T11 Eliminar Elena};
+    \node[resource, below=10mm of b5] (cs2) {Misma sección crítica\\\texttt{Clinica.pacientes + mtx}};
+    \node[flow, fill=diagramgreen, below=9mm of cs2] (join2) {COEND 2 / join};
+    \node[flow, fill=diagramblue, below=of join2] (query) {Consultas y estadísticas};
+    \node[flow, fill=diagramorange, right=of query] (save) {Guardar archivo};
+    \draw[arr] (load) -- (ids);
+    \draw[arr] (ids) -- (a3);
+    \draw[access] (a1) -- (cs1);
+    \draw[access] (a2) -- (cs1);
+    \draw[access] (a3) -- (cs1);
+    \draw[access] (a4) -- (cs1);
+    \draw[access] (a5) -- (cs1);
+    \draw[arr] (cs1) -- (join1);
+    \draw[access] (b1) -- (cs2);
+    \draw[access] (b2) -- (cs2);
+    \draw[access] (b3) -- (cs2);
+    \draw[access] (b4) -- (cs2);
+    \draw[access] (b5) -- (cs2);
+    \draw[access] (b6) -- (cs2);
+    \draw[arr] (join1) -- (b2);
+    \draw[arr] (cs2) -- (join2);
+    \draw[arr] (join2) -- (query);
+    \draw[arr] (query) -- (save);
+\end{tikzpicture}
+\caption{Grafo de dependencias y acceso concurrente a la sección crítica.}
+\label{fig:dependencias}
+\end{figure}
+
+La primera dependencia es secuencial: se deben cargar los datos y preparar los
+identificadores antes de iniciar las altas. T1--T5 forman un conjunto
+concurrente. Después de `COEND 1`, T6--T11 también pueden crearse como hilos
+independientes. El acceso a la sección crítica no elimina la concurrencia del
+conjunto de tareas; únicamente impide que dos tareas modifiquen simultáneamente
+la estructura `Clinica`. Finalmente, `COEND 2` es requisito para iniciar las
+consultas y guardar un estado consistente.
+
+% ---------------------------------------------------------------
+\section{Representación COBEGIN--COEND}
+
+La siguiente representación es pseudocódigo en español. No es el código fuente
+del programa; describe la estructura de concurrencia que se implementa con
+hilos y operaciones `join`.
+
+\subsection{Alta concurrente}
+
+\begin{lstlisting}[language={},caption={Pseudocódigo de altas concurrentes.},label={lst:altas}]
+INICIO
+    clínica <- cargar y validar pacientes.txt
+    fecha_actual <- establecer fecha de trabajo
+
+    COBEGIN
+        tarea alta_Ana:
+            si Ana no existe, agregar paciente Ana
+        tarea alta_Beto:
+            si Beto no existe, agregar paciente Beto
+        tarea alta_Carla:
+            si Carla no existe, agregar paciente Carla
+        tarea alta_Diego:
+            si Diego no existe, agregar paciente Diego
+        tarea alta_Elena:
+            si Elena no existe, agregar paciente Elena
+    COEND
+
+    conservar el identificador obtenido por cada tarea
+FIN
+\end{lstlisting}
+
+Las cinco tareas consultan y actualizan el mismo objeto, por lo que la
+independencia es lógica y no implica acceso simultáneo sin protección. Cada
+alta adquiere el mutex antes de buscar e insertar. La inserción ordenada por
+identificador mantiene la precondición de la búsqueda binaria.
+
+\subsection{Vacunas, modificaciones y eliminación}
+
+\begin{lstlisting}[language={},caption={Pseudocódigo de actualizaciones concurrentes.},label={lst:actualizaciones}]
+COBEGIN
+    tarea vacunas_Ana:
+        registrar vacunas aplicadas para Ana
+
+    tarea vacunas_Beto:
+        registrar vacunas aplicadas para Beto
+
+    tarea proxima_Carla:
+        agregar vacuna próxima para Carla
+
+    tarea proxima_Diego:
+        agregar vacuna próxima para Diego
+
+    tarea cambios_personales:
+        modificar nombre de Ana
+        modificar fecha de nacimiento de Beto
+
+    tarea eliminar_Elena:
+        eliminar a Elena si existe
+COEND
+
+realizar consultas solamente después del COEND
+guardar el estado final al cerrar la clínica
+\end{lstlisting}
+
+Las tareas se refieren a pacientes distintos en sus operaciones principales.
+Cuando dos tareas coinciden sobre el mismo paciente, como una aplicación de
+vacuna y un cambio de datos personales, el mutex impide que se modifiquen
+simultáneamente los campos del objeto. El resultado no depende de que una
+operación se ejecute primero, siempre que ambas sean válidas y no exista una
+dependencia funcional entre ellas.
+
+\subsection{Correspondencia con la implementación}
+
+En C++, `COBEGIN` se materializa creando un `std::thread` por tarea y `COEND`
+se materializa invocando `join` sobre todos los hilos. El mutex de la clínica
+protege el vector y el mutex de salida protege los mensajes de consola. De esta
+forma, el pseudocódigo conserva la intención del modelo estructurado sin
+introducir una sintaxis que el compilador de C++ no reconoce.
+
+% ---------------------------------------------------------------
+\section{Solución de cada requisito}
+
+La Tabla~\ref{tab:requisitos} documenta cómo se resuelve cada parte de la
+especificación y por qué se utiliza el mecanismo correspondiente.
+
+\begin{table}[H]
+\centering
+\caption{Requisitos funcionales y solución implementada.}
+\label{tab:requisitos}
+\small
+\begin{tabularx}{\textwidth}{p{0.7cm}p{4.0cm}YY}
+\toprule
+\textbf{No.} & \textbf{Requisito} & \textbf{Solución} & \textbf{Justificación} \\
+\midrule
+1 & Registrar paciente & Constructor de paciente y alta en la clínica. & Centraliza la validación y asigna un identificador estable. \\
+2 & Registrar vacuna aplicada & Agregar a la lista de recibidas. & Distingue historial de vacunas futuras. \\
+3 & Agregar vacuna próxima & Agregar a la lista de próximas. & Permite consultas temporales sin mezclar estados. \\
+4 & Eliminar paciente & Búsqueda por identificador y borrado del vector. & El identificador evita depender de una posición que puede cambiar. \\
+5 & Modificar nombre o nacimiento & Sobrecargas de modificación y validación de fecha. & Se reutiliza la misma identidad del paciente y se rechazan fechas imposibles. \\
+6 & Mostrar información & Conversión del paciente a representación textual. & Proporciona una salida completa y legible. \\
+7 & Modificar o eliminar vacuna & Búsqueda insensible a mayúsculas y operación sobre la lista. & Tolera variaciones de escritura en nombres de vacunas. \\
+8 & Nombres en orden alfabético & Copia de nombres y ordenamiento por mayúsculas. & No altera el orden interno de persistencia. \\
+9 & Mostrar información de cinco en cinco & Recorrido paginado con pausa cada cinco registros. & Evita una salida difícil de leer. \\
+10 & Rango de edades & Cálculo de edad con fecha actual y filtrado. & La edad se calcula en años cumplidos, no solo por diferencia de años. \\
+11 & Vacuna en próximos siete días & Diferencia de días y comparación inclusiva de 0 a 7. & Incluye tanto el día actual como el séptimo día futuro. \\
+12 & Vacunas aplicadas en última semana & Recorrido de vacunas recibidas y conteo temporal. & Cuenta aplicaciones, no pacientes, que es lo solicitado. \\
+13 & Vacuna del siguiente mes & Determinación del mes siguiente y filtrado por nombre. & Evita confundir una fecha del mismo mes con una del siguiente. \\
+14 & Pacientes vacunados en mes actual & Filtrado, orden alfabético y salida de edad, vacuna y fecha. & Entrega todos los datos pedidos en una sola consulta. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ---------------------------------------------------------------
+\section{Pruebas y resultados}
+
+\subsection{Compilación}
+
+El reporte se organiza para compilarse desde su directorio mediante el comando
+proporcionado para la práctica: `latexbuild main.tex`. El proceso utiliza
+XeLaTeX, crea el directorio `build` y genera el PDF en `build/main.pdf`. Las
+referencias bibliográficas se resuelven automáticamente por `latexmk` mediante
+BibTeX y el estilo numérico IEEE.
+
+El programa C++ se configura con CMake, requiere el estándar C++17 y enlaza la
+biblioteca de hilos del sistema. El código fuente completo y el archivo de
+configuración se incluyen en el Apéndice~\ref{app:codigo}, no en la explicación.
+
+\subsection{Casos de prueba}
+
+\begin{table}[H]
+\centering
+\caption{Casos de prueba considerados.}
+\label{tab:pruebas}
+\begin{tabularx}{\textwidth}{p{2.7cm}YY}
+\toprule
+\textbf{Caso} & \textbf{Procedimiento} & \textbf{Resultado esperado} \\
+\midrule
+Carga válida & Leer `pacientes.txt` con registros completos y campos vacíos permitidos. & Se crea un paciente por línea válida y se separan sus dos listas de vacunas. \\
+Fecha inválida & Intentar crear una fecha con día fuera del mes o mes fuera de rango. & La validación rechaza la fecha mediante una excepción controlada. \\
+Alta repetida & Ejecutar nuevamente el demostrador con pacientes ya existentes. & No se duplican los pacientes ni se acumulan las vacunas del demostrador. \\
+Concurrencia & Ejecutar las altas y actualizaciones como tareas independientes. & Todos los hilos terminan y el vector permanece estructuralmente válido. \\
+Búsquedas & Buscar por identificador, nombre y fecha de nacimiento. & Se obtiene el índice correspondiente o `-1` si no existe. \\
+Consultas temporales & Consultar siete días, última semana, siguiente mes y mes actual. & Se filtran las vacunas según la fecha de trabajo establecida. \\
+Persistencia & Cerrar la clínica y abrirla nuevamente. & Los cambios se reconstruyen desde el archivo actualizado. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+La fecha de trabajo usada por el demostrador es el 13 de octubre de 2026. Una
+fecha fija permite comparar ejecuciones y verificar resultados sin que cambien
+por el paso del tiempo. En una aplicación operativa, dicha fecha puede
+obtenerse del sistema o solicitarse al usuario, como ya contempla la clase de
+la clínica.
+
+\subsection{Resultados observados}
+
+La compilación del programa en una copia limpia de los archivos fuente terminó
+sin errores y produjo el ejecutable `vacunas`. La ejecución terminó con código
+de retorno cero y no produjo mensajes en la salida de error. En la salida se
+observaron cinco altas concurrentes, seis tareas de actualización y eliminación,
+las búsquedas solicitadas y las siguientes estadísticas:
+
+\begin{table}[H]
+\centering
+\caption{Resultados observados durante la ejecución de prueba.}
+\label{tab:resultados}
+\begin{tabularx}{0.78\textwidth}{p{7.0cm}Y}
+\toprule
+\textbf{Consulta} & \textbf{Resultado} \\
+\midrule
+Búsqueda por identificador de Ana & índice 0 \\
+Búsqueda por nombre de Ana & índice 0 \\
+Búsqueda por fecha 27/09/2020 & índice $-1$ \\
+Vacunas aplicadas en la última semana & 2 \\
+Vacunas de difteria en el siguiente mes & 1 \\
+Estado de ejecución & código de retorno 0 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Estos resultados comprueban tanto el flujo concurrente como la continuación
+secuencial posterior al `COEND`: las consultas se realizan cuando ya terminaron
+las altas y modificaciones.
+
+\subsection{Corrección de la sincronización}
+
+La corrección se argumenta mediante tres propiedades:
+
+\begin{enumerate}[leftmargin=1.2cm]
+    \item \textbf{Exclusión mutua:} las operaciones protegidas por el mutex no
+    se ejecutan simultáneamente sobre el vector.
+    \item \textbf{Ausencia de consultas prematuras:} el `join` se ejecuta antes
+    de las consultas, por lo que estas observan todas las actualizaciones
+    terminadas.
+    \item \textbf{Invariante de orden:} las inserciones conservan el orden por
+    identificador, requisito necesario para la búsqueda binaria.
+\end{enumerate}
+
+La sincronización no hace que todas las operaciones sean paralelas: dos
+operaciones que llegan al mismo mutex se serializan. El paralelismo se conserva
+en la preparación y coordinación de tareas independientes, mientras que la
+sección crítica se mantiene tan pequeña como permite la consistencia del
+vector.
+
+% ---------------------------------------------------------------
+\section{Complejidad, limitaciones y discusión}
+
+Sea $n$ el número de pacientes y $v$ el número total de vacunas almacenadas.
+La carga del archivo es $O(n+v)$; una búsqueda binaria por identificador es
+$O(\log n)$ en comparaciones, mientras que la búsqueda por nombre o fecha es
+$O(n)$. Las consultas que recorren vacunas son $O(n+v)$ y los listados
+ordenados requieren $O(n\log n)$ por el ordenamiento.
+
+La implementación actual copia el vector en la función de búsqueda binaria,
+por lo que el costo real de esa interfaz puede ser mayor que el costo ideal de
+la búsqueda. Es una mejora futura pasar una referencia constante y evitar la
+copia, sin modificar el algoritmo de búsqueda.
+
+También existen las siguientes limitaciones:
+
+\begin{itemize}[leftmargin=1.2cm]
+    \item El formato de texto no ofrece transacciones ni bloqueo entre
+    procesos distintos; la sincronización implementada protege los hilos del
+    proceso actual.
+    \item Los registros inválidos se ignoran durante la carga, pero no se
+    reporta su número ni la causa exacta.
+    \item Las utilidades de mayúsculas y minúsculas están orientadas a
+    caracteres ASCII; la comparación de nombres con acentos puede requerir una
+    normalización Unicode.
+    \item Las funciones de salida mantienen el mutex mientras escriben; esto
+    ofrece una vista consistente, pero puede reducir el paralelismo durante
+    listados extensos.
+    \item La escritura reconstruye el archivo completo. Para volúmenes grandes
+    sería preferible una base de datos o un formato con actualizaciones
+    transaccionales.
+    \item El `CMakeLists.txt` utiliza una búsqueda recursiva de archivos fuente.
+    Si se configura fuera del árbol fuente mientras existe un directorio de
+    compilación generado dentro de él, podrían detectarse archivos `.cpp`
+    auxiliares del compilador. Para una versión más robusta convendría declarar
+    explícitamente las fuentes o excluir siempre los directorios de compilación.
+\end{itemize}
+
+Estas limitaciones no invalidan la solución de la práctica: delimitan el
+alcance de una aplicación educativa de memoria compartida y muestran qué
+decisiones deberían revisarse para un sistema de producción.
+
+% ---------------------------------------------------------------
+\section{Conclusiones}
+
+El problema se resolvió separando el modelo de dominio, las reglas de fechas,
+las operaciones de la clínica y la persistencia. Esta división facilita
+justificar cada requisito y evita duplicar reglas de validación. El uso de
+identificadores estables permite que las tareas concurrentes no dependan de
+índices que pueden cambiar al insertar o eliminar pacientes.
+
+El análisis de dependencias mostró que la carga y la asignación de
+identificadores son precedencias obligatorias, mientras que las altas y varias
+actualizaciones pueden agruparse en un bloque `COBEGIN`. El `COEND` se
+representa con `join` y constituye la barrera que garantiza que las consultas
+observen un estado terminado. El mutex evita condiciones de carrera sobre el
+vector compartido, aunque también establece el límite del paralelismo efectivo.
+
+Finalmente, la solución es adecuada para demostrar concurrencia estructurada,
+validación, persistencia y consultas temporales en C++. Para una evolución
+posterior se recomienda mejorar el diagnóstico de entradas inválidas, evitar
+copias innecesarias en búsquedas, normalizar texto Unicode y utilizar un
+almacenamiento transaccional cuando el volumen de datos lo requiera.
+
+% ---------------------------------------------------------------
+\clearpage
+\addcontentsline{toc}{section}{Referencias}
+\renewcommand{\refname}{Referencias}
+\bibliographystyle{IEEEtran}
+\bibliography{referencias}
+
+% ---------------------------------------------------------------
+\appendix
+\section{Código fuente}
+\label{app:codigo}
+
+Este apéndice contiene el código fuente utilizado por la aplicación. Se omiten
+los fragmentos de implementación en el cuerpo del reporte para mantener la
+explicación centrada en el diseño, las dependencias y la justificación de las
+decisiones.
+
+\subsection{Configuración de compilación}
+\lstinputlisting[language=C++,caption={Configuración CMake.}]{../programa/CMakeLists.txt}
+
+\subsection{Programa principal}
+\lstinputlisting[language=C++,caption={Programa principal.}]{../programa/main.cpp}
+
+\subsection{Clínica}
+\lstinputlisting[language=C++,caption={Interfaz de la clínica.}]{../programa/clinica.h}
+\lstinputlisting[language=C++,caption={Implementación de la clínica.}]{../programa/clinica.cpp}
+
+\subsection{Paciente y vacuna}
+\lstinputlisting[language=C++,caption={Interfaz del paciente.}]{../programa/paciente.h}
+\lstinputlisting[language=C++,caption={Implementación del paciente.}]{../programa/paciente.cpp}
+\lstinputlisting[language=C++,caption={Interfaz de la vacuna.}]{../programa/vacuna.h}
+\lstinputlisting[language=C++,caption={Implementación de la vacuna.}]{../programa/vacuna.cpp}
+
+\subsection{Fechas y utilidades}
+\lstinputlisting[language=C++,caption={Interfaz de fechas.}]{../programa/fecha.h}
+\lstinputlisting[language=C++,caption={Implementación de fechas.}]{../programa/fecha.cpp}
+\lstinputlisting[language=C++,caption={Interfaz de utilidades.}]{../programa/utils.h}
+\lstinputlisting[language=C++,caption={Implementación de utilidades.}]{../programa/utils.cpp}
+
+\section{Archivo de datos de prueba}
+\label{app:datos}
+
+El archivo utilizado para las pruebas se conserva como parte del material de
+entrada de la aplicación.
+
+\lstinputlisting[caption={Archivo de pacientes de prueba.}]{../programa/pacientes.txt}
+
+\end{document}

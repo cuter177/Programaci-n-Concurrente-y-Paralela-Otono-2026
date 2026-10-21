@@ -1,0 +1,97 @@
+%% ------------------------------------------------------------------
+%% Problema 2
+%% ------------------------------------------------------------------
+\section{Problema 2. Inversi\'on de un arreglo}
+
+\subsection*{Enunciado}
+Dado un conjunto de n\'umeros en un arreglo, invertir el arreglo, es decir, el
+primer elemento deber\'a aparecer al final, el \'ultimo al inicio, y as\'i
+sucesivamente.
+
+\subsection*{An\'alisis del algoritmo}
+Sea $A$ un arreglo de $N$ elementos indexado de $0$ a $N-1$. La inversi\'on
+intercambia cada elemento con su sim\'etrico respecto al centro:
+\[
+    \text{swap}(A[i], A[N-1-i]) \quad \text{para } i = 0, 1, \dots, \lfloor N/2 \rfloor - 1.
+\]
+Cada tarea toca \'unicamente la pareja de posiciones $\{i, N-1-i\}$. Como los
+\'indices de una pareja pertenecen a la mitad inferior y superior
+respectivamente, los conjuntos de posiciones de dos parejas distintas son
+disjuntos, de modo que todas las tareas son independientes.
+
+\subsection*{Condiciones de Bernstein}
+Para cada tarea se identifican las variables que lee ($L$) y las que escribe
+($E$):
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Tarea & Lee $L$ & Escribe $E$ \\
+\midrule
+$T_i$: \texttt{swap(A[i],A[N-1-i])} & $\{A[i],A[N-1-i]\}$ & $\{A[i],A[N-1-i]\}$ \\
+$T_j$: \texttt{swap(A[j],A[N-1-j])} & $\{A[j],A[N-1-j]\}$ & $\{A[j],A[N-1-j]\}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Verificaci\'on de independencia:
+\begin{itemize}[leftmargin=1.4cm]
+    \item \textbf{$T_i \parallel T_j$ ($i \neq j$):} como
+    $\{i, N-1-i\} \cap \{j, N-1-j\} = \emptyset$, se cumple que
+    $L(T_i) \cap E(T_j) = \emptyset$, $E(T_i) \cap L(T_j) = \emptyset$ y
+    $E(T_i) \cap E(T_j) = \emptyset$. Las tareas son independientes y pueden
+    ejecutarse en paralelo.
+    \item \textbf{Inicio $\rightarrow T_i \rightarrow$ Fin:} no hay
+    dependencias entre las tareas de intercambio; la \'unica sincronizaci\'on
+    necesaria es la barrera \texttt{COEND} que separa el c\'alculo del resto del
+    programa.
+\end{itemize}
+
+\subsection*{Grafo de dependencias}
+Las tareas de intercambio no tienen aristas entre s\'i: parten de un nodo
+com\'un y convergen en una barrera de sincronizaci\'on. Cada nodo $T_i$
+representa el intercambio de la pareja de posiciones $(i, N-1-i)$.
+
+\begin{center}
+\begin{tikzpicture}[node distance=1.4cm]
+    \node[task] (inicio) {Inicio};
+    \node[wide] (t0) at (-5.0,-2.0) {T0: (0, N-1)};
+    \node[wide] (t1) at (-1.6,-2.0) {T1: (1, N-2)};
+    \node[font=\large] (dots) at (1.6,-2.0) {$\cdots$};
+    \node[wide] (tk) at (5.0,-2.0) {T\_k: (k, N-1-k)};
+    \node[task] (fin) at (0,-3.8) {Fin};
+
+    \node[font=\scriptsize\itshape, text=red!70!black, align=center,
+          anchor=west] at (1.7,-3.8)
+          {Barrera de sincronizaci\'on\\(\texttt{COEND})};
+
+    \draw[dep] (inicio) -- (t0);
+    \draw[dep] (inicio) -- (t1);
+    \draw[dep] (inicio) -- (tk);
+    \draw[dep] (t0) -- (fin);
+    \draw[dep] (t1) -- (fin);
+    \draw[dep] (tk) -- (fin);
+\end{tikzpicture}
+\end{center}
+
+El camino cr\'itico es $\text{Inicio} \rightarrow T_i \rightarrow \text{Fin}$ y
+el paralelismo m\'aximo es $\lfloor N/2 \rfloor$.
+
+\subsection*{Soluci\'on con COBEGIN--COEND}
+\begin{lstlisting}
+leer A[0..N-1]
+COBEGIN
+    para i = 0 .. floor(N/2)-1 hacer
+        temp   = A[i]
+        A[i]   = A[N-1-i]
+        A[N-1-i] = temp
+    fin para
+COEND
+escribir A
+\end{lstlisting}
+
+\noindent
+Cada iteraci\'on del bucle intercambia una pareja distinta de posiciones, por lo
+que todas son independientes y van dentro del mismo \texttt{COBEGIN}. La barrera
+\texttt{COEND} garantiza que el arreglo est\'e completamente invertido antes de
+imprimirlo.
