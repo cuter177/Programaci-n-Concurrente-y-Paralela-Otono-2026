@@ -1,3 +1,12 @@
+/*
+ * Practica 4 - Clinica de vacunacion (concurrencia con hilos)
+ *
+ * Integrantes del equipo:
+ *   Islas Gomez Luis Antonio      - 202372860
+ *   Ramirez Candia Alfredo       - 202375947
+ *   Perez Flores Julio Cesar     - 202247445
+ *   Navarro Soto Mario Alberto   - 202264602
+ */
 
 #include "clinica.h"
 #include "fecha.h"

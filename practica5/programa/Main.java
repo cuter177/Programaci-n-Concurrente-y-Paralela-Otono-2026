@@ -1,3 +1,13 @@
+/*
+ * Practica 5 - Reserva de asientos de cine (concurrencia con hilos)
+ *
+ * Integrantes del equipo:
+ *   Islas Gomez Luis Antonio      - 202372860
+ *   Ramirez Candia Alfredo       - 202375947
+ *   Perez Flores Julio Cesar     - 202247445
+ *   Navarro Soto Mario Alberto   - 202264602
+ */
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
