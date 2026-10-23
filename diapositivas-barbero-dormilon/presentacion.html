@@ -215,15 +215,15 @@
       <div class="cols" style="gap:0.7em;">
         <div class="col" style="flex:1;">
 <div class="pre"><span class="cm">//INICIALIZACIÓN</span>
-<span class="sem">SEMAFORO</span> clientes      ← 0      <span class="cm">// nadie espera</span>
+<span class="sem">SEMAFORO</span> clientes      ← 0      <span class="cm">// Barberia vacia</span>
 <span class="sem">SEMAFORO</span> barbero_listo ← 0      <span class="cm">// barbero ocupado</span>
 <span class="sem">SEMAFORO</span> sillas_libres ← N      <span class="cm">// N sillas vacías</span>
-<span class="sem">MUTEX</span>    ocupadas      ← 1      <span class="cm">// protege contador</span>
+<span class="sem">MUTEX</span>    ocupadas      ← 1      <span class="cm">// proteger contador</span>
 ocupadas ← 0                    <span class="cm">// sillas usadas</span>
 
 <span class="cm">//PROCESO CLIENTE </span>
 <span class="kw">INICIO</span> cliente
-  ESPERAR(sillas_libres)         <span class="cm">// ¿hay silla?</span>
+  ESPERAR(sillas_libres)         <span class="cm">//al entrar un cliente pregunta si hay silla</span>
   <span class="kw">ENTRAR EN</span> ocupadas             <span class="cm">// región crítica</span>
      ocupadas ← ocupadas + 1
   <span class="kw">SALIR DE</span> ocupadas
@@ -235,12 +235,12 @@ ocupadas ← 0                    <span class="cm">// sillas usadas</span>
   ENTRAR EN ocupadas
      ocupadas ← ocupadas - 1
   SALIR DE ocupadas
-  SEÑALIZAR(sillas_libres)       <span class="cm">// deja la silla</span>
+  SEÑALIZAR(sillas_libres)       <span class="cm">// deja libre la silla</span>
 <span class="kw">FIN</span> cliente</div>
         </div>
         <div class="col" style="flex:1;">
 <div class="pre"><span class="cm">//PROCESO BARBERO</span>
-<span class="cm">// se repite para siempre (bucle infinito)</span>
+<span class="cm">//(bucle infinito)</span>
 <span class="kw">INICIO</span> barbero  <span class="kw">REPETIR PARA SIEMPRE</span>
 
   ESPERAR(clientes)              <span class="cm">// duerme si no hay</span>
