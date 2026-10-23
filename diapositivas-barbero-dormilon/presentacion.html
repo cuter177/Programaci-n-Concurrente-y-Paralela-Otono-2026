@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El problema del barbero dormilón — Solución con semáforos</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/black.css" id="theme">
+<style>
+  :root {
+    --accent: #38bdf8;
+    --accent2: #f472b6;
+    --accent3: #facc15;
+    --ok: #4ade80;
+    --bad: #f87171;
+    --muted: #94a3b8;
+  }
+  .reveal {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 30px;
+  }
+  .reveal h1, .reveal h2, .reveal h3 {
+    text-transform: none;
+    letter-spacing: -0.01em;
+    color: #f8fafc;
+    font-weight: 700;
+  }
+  .reveal h1 { font-size: 1.7em; }
+  .reveal h2 { font-size: 1.2em; }
+  .reveal h3 { font-size: 0.95em; color: var(--accent); }
+  .reveal .subtitle { color: var(--muted); font-size: 0.75em; font-weight: 400; }
+  .reveal section { text-align: left; }
+  .reveal .center { text-align: center; }
+
+  .tag {
+    display: inline-block;
+    background: rgba(56,189,248,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(56,189,248,0.5);
+    border-radius: 999px;
+    padding: 0.1em 0.7em;
+    font-size: 0.5em;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .highlight { color: var(--accent); font-weight: 700; }
+  .highlight2 { color: var(--accent2); font-weight: 700; }
+  .highlight3 { color: var(--accent3); font-weight: 700; }
+  .ok { color: var(--ok); font-weight: 700; }
+  .bad { color: var(--bad); font-weight: 700; }
+
+  ul, ol { line-height: 1.4; }
+  li { margin-bottom: 0.3em; }
+
+  .cols { display: flex; gap: 1.1em; align-items: stretch; }
+  .col { flex: 1; }
+  .card {
+    background: rgba(148,163,184,0.09);
+    border: 1px solid rgba(148,163,184,0.25);
+    border-radius: 14px;
+    padding: 0.6em 0.8em;
+  }
+  .card h3 { margin-top: 0; }
+  .card.accent { border-color: rgba(56,189,248,0.6); background: rgba(56,189,248,0.08); }
+  .card.warn { border-color: rgba(248,113,113,0.6); background: rgba(248,113,113,0.08); }
+  .card.good { border-color: rgba(74,222,128,0.6); background: rgba(74,222,128,0.08); }
+
+  table { font-size: 0.6em; width: 100%; border-collapse: collapse; }
+  th, td { padding: 0.35em 0.5em; border-bottom: 1px solid rgba(148,163,184,0.3); text-align: left; }
+  th { color: var(--accent); }
+  .reveal table td.center-cell { text-align: center; }
+
+  code {
+    font-family: "Fira Code", "Cascadia Code", monospace;
+    background: rgba(148,163,184,0.15);
+    border-radius: 5px;
+    padding: 0.05em 0.3em;
+    color: #e2e8f0;
+    font-size: 0.85em;
+  }
+
+  .pre {
+    font-family: "Fira Code", "Cascadia Code", ui-monospace, monospace;
+    font-size: 0.44em;
+    line-height: 1.42;
+    background: #0b1220;
+    border: 1px solid rgba(56,189,248,0.3);
+    border-radius: 12px;
+    padding: 0.7em 0.9em;
+    white-space: pre;
+    overflow: hidden;
+    height: auto;
+  }
+  .pre .kw { color: var(--accent3); font-weight: 700; }
+  .pre .p { color: var(--accent); font-weight: 700; }
+  .pre .cm { color: var(--muted); }
+  .pre .hl { background: rgba(244,114,182,0.22); border-radius: 4px; }
+  .pre .sem { color: var(--accent2); font-weight: 700; }
+
+  .team {
+    display: inline-block;
+    background: rgba(148,163,184,0.08);
+    border: 1px solid rgba(148,163,184,0.3);
+    border-radius: 14px;
+    padding: 0.6em 1.4em;
+    font-size: 0.62em;
+    line-height: 1.7;
+    text-align: left;
+  }
+  .team .label { color: var(--accent); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.75em; }
+
+  .legend { font-size: 0.58em; color: var(--muted); text-align: center; }
+  .footer-note { font-size: 0.55em; color: var(--muted); }
+  .reasons li { margin-bottom: 0.5em; }
+</style>
+</head>
+<body>
+<div class="reveal">
+  <div class="slides">
+
+    <!-- 1. PORTADA + INTEGRANTES -->
+    <section class="center">
+      <span class="tag">Concurrencia y Paralelismo</span>
+      <h1>El problema del barbero dormilón</h1>
+      <p class="subtitle" style="font-size:0.78em; margin-top:-0.2em;">
+        Planteamiento, solución con <span class="highlight">semáforos</span> y pseudocódigo
+      </p>
+      <p style="font-size:0.58em; color:var(--muted); margin-top:1.1em;">
+        <span class="highlight2">Dijkstra, 1965</span> &nbsp;·&nbsp;
+        Productor–consumidor con búfer finito &nbsp;·&nbsp;
+        <span class="highlight3">ESPERAR / SEÑALIZAR</span>
+      </p>
+      <div class="team" style="margin-top:1.3em; text-align:left;">
+        <span class="label">Integrantes del equipo</span><br>
+        Alfredo Ramírez Candia<br>
+        Luis Antonio Islas Gómez<br>
+        Navarro Soto Mario Alberto<br>
+        Perez Flores Julio Cesar
+      </div>
+    </section>
+
+    <!-- 2. PLANTEAMIENTO + SEMAFOROS -->
+    <section>
+      <h2>Planteamiento del problema y solución con semáforos</h2>
+      <div class="cols">
+        <div class="col card accent" style="flex:1.05;">
+          <h3>La barbería</h3>
+          <ul style="font-size:0.68em;">
+            <li><span class="highlight">1 solo barbero</span> y una sala de espera con <strong>N sillas</strong>.</li>
+            <li>Si no hay clientes, el barbero <span class="bad">duerme</span>.</li>
+            <li>Llega un cliente:
+              <ul>
+                <li>Si el barbero duerme → lo <span class="ok">despierta</span>.</li>
+                <li>Si está ocupado → espera en una silla.</li>
+                <li>Si no hay sillas → <span class="bad">se va</span>.</li>
+              </ul>
+            </li>
+            <li>Al terminar: atiende al siguiente o <span class="bad">vuelve a dormir</span>.</li>
+          </ul>
+        </div>
+        <div class="col card warn" style="flex:0.95;">
+          <h3>El fallo sin sincronización</h3>
+          <p style="font-size:0.68em;">
+            Cliente y barbero actúan <strong>a la vez</strong>: él se va a dormir justo
+            cuando el cliente llega → <span class="bad">ambos duermen</span>.
+          </p>
+          <p class="footer-note" style="font-size:0.9em;">
+            Se perdió la señal de "hay trabajo": <span class="bad">lost wakeup</span>.
+            También hay <span class="bad">carrera</span> sobre el contador de sillas.
+          </p>
+        </div>
+      </div>
+
+      <div class="card good" style="margin-top:0.6em; padding:0.5em 0.7em;">
+        <h3 style="margin-bottom:0.25em;">Algoritmo con semáforos</h3>
+        <table style="font-size:0.52em;">
+          <tr>
+            <th>Semáforo / recurso</th>
+            <th class="center-cell">Valor inicial</th>
+            <th>Qué coordina</th>
+          </tr>
+          <tr>
+            <td><code>clientes</code></td>
+            <td class="center-cell">0</td>
+            <td>Clientes esperando: <strong>SEÑALIZA</strong> el cliente al llegar, <strong>ESPERA</strong> el barbero (se duerme aquí).</td>
+          </tr>
+          <tr>
+            <td><code>barbero_listo</code></td>
+            <td class="center-cell">0</td>
+            <td>Barbero disponible: <strong>SEÑALIZA</strong> el barbero al despertar, <strong>ESPERA</strong> el cliente (no se sienta antes de ser atendido).</td>
+          </tr>
+          <tr>
+            <td><code>sillas_libres</code></td>
+            <td class="center-cell">N</td>
+            <td>Sala con <strong>buffer finito</strong>: <strong>ESPERA</strong> el cliente para ocupar silla, <strong>SEÑALIZA</strong> al salir.</td>
+          </tr>
+          <tr>
+            <td><code>mutex</code></td>
+            <td class="center-cell">1</td>
+            <td>Exclusión mutua sobre el <strong>contador de sillas ocupadas</strong> (región crítica).</td>
+          </tr>
+        </table>
+      </div>
+      <p class="legend" style="margin-top:0.45em;">
+        <code>ESPERAR(s)</code> = decrementa y bloquea si llega a 0 &nbsp;·&nbsp;
+        <code>SEÑALIZAR(s)</code> = incrementa y despierta a quien espera &nbsp;·&nbsp;
+        Clásico patrón <span class="highlight2">productor–consumidor con búfer finito</span>.
+      </p>
+    </section>
+
+    <!-- 3. PSEUDOCODIGO + PREGUNTA -->
+    <section>
+      <h2 style="margin-bottom:0.15em;">Pseudocódigo de la solución</h2>
+      <div class="cols" style="gap:0.7em;">
+        <div class="col" style="flex:1;">
+<div class="pre"><span class="cm">//INICIALIZACIÓN</span>
+<span class="sem">SEMAFORO</span> clientes      ← 0      <span class="cm">// nadie espera</span>
+<span class="sem">SEMAFORO</span> barbero_listo ← 0      <span class="cm">// barbero ocupado</span>
+<span class="sem">SEMAFORO</span> sillas_libres ← N      <span class="cm">// N sillas vacías</span>
+<span class="sem">MUTEX</span>    ocupadas      ← 1      <span class="cm">// protege contador</span>
+ocupadas ← 0                    <span class="cm">// sillas usadas</span>
+
+<span class="cm">//PROCESO CLIENTE </span>
+<span class="kw">INICIO</span> cliente
+  ESPERAR(sillas_libres)         <span class="cm">// ¿hay silla?</span>
+  <span class="kw">ENTRAR EN</span> ocupadas             <span class="cm">// región crítica</span>
+     ocupadas ← ocupadas + 1
+  <span class="kw">SALIR DE</span> ocupadas
+  SEÑALIZAR(clientes)            <span class="cm">// despierta al barbero</span>
+  ESPERAR(barbero_listo)         <span class="cm">// espera su turno</span>
+
+  <span class="cm">//recibe el corte de pelo</span>
+
+  ENTRAR EN ocupadas
+     ocupadas ← ocupadas - 1
+  SALIR DE ocupadas
+  SEÑALIZAR(sillas_libres)       <span class="cm">// deja la silla</span>
+<span class="kw">FIN</span> cliente</div>
+        </div>
+        <div class="col" style="flex:1;">
+<div class="pre"><span class="cm">//PROCESO BARBERO</span>
+<span class="cm">// se repite para siempre (bucle infinito)</span>
+<span class="kw">INICIO</span> barbero  <span class="kw">REPETIR PARA SIEMPRE</span>
+
+  ESPERAR(clientes)              <span class="cm">// duerme si no hay</span>
+                                <span class="cm">// nadie esperando</span>
+  SEÑALIZAR(barbero_listo)       <span class="cm">// avisa: estoy listo</span>
+
+  <span class="cm">//corta el pelo al cliente </span>
+
+  <span class="cm">// al terminar, si nadie espera,</span>
+  <span class="cm">// ESPERAR(clientes) lo vuelve a</span>
+  <span class="cm">// bloquear: el barbero duerme</span>
+
+<span class="kw">FIN REPETIR</span>
+<span class="kw">FIN</span> barbero
+
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:0.55em; border-color:rgba(74,222,128,0.6); background:rgba(74,222,128,0.08); padding:0.5em 0.8em;">
+        <h3 style="margin:0 0 0.2em 0; color:var(--ok); font-size:0.9em;">¿Qué problemas reales soluciona en el ámbito computacional?</h3>
+        <p style="font-size:0.6em; margin:0;">
+          Es el patrón <span class="highlight">productor–consumidor con búfer finito</span>:
+          <strong>colas de trabajos</strong> de servidores web y de impresión,
+          <strong>pools de hilos</strong> que atienden tareas de un usuario,
+          <strong>colas de mensajes</strong> entre procesos, y el <em>backlog</em> de conexiones
+          de un socket. El productor espera si el búfer está lleno, el consumidor duerme
+          si está vacío: <span class="highlight2">mismo algoritmo, mismos semáforos</span>.
+        </p>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/notes/notes.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    slideNumber: 'c/t',
+    transition: 'slide',
+    width: 1200,
+    height: 750,
+    margin: 0.06,
+    plugins: [ RevealNotes ]
+  });
+</script>
+</body>
+</html>
