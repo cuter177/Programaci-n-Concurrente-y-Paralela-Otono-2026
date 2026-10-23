@@ -113,6 +113,9 @@
   .legend { font-size: 0.58em; color: var(--muted); text-align: center; }
   .footer-note { font-size: 0.55em; color: var(--muted); }
   .reasons li { margin-bottom: 0.5em; }
+
+  /* Al exportar a PDF: la última diapositiva no debe generar una página en blanco */
+  html.print-pdf .reveal .slides .pdf-page:last-child { page-break-after: auto; }
 </style>
 </head>
 <body>
