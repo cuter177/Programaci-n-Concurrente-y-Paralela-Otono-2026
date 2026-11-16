@@ -1,9 +1,10 @@
+#include <ctype.h>
+#include <math.h>
+#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include <time.h>
-#include <omp.h>
 
 /* ---------- Prototipos de las 10 operaciones ---------- */
 static void op1_espacios(void);
@@ -20,6 +21,9 @@ static void op10_sumatoria(void);
 /* ---------- Utilidades ---------- */
 static void imprimir_menu(void);
 static void limpiar_entrada(void);
+static char *leer_linea_dinamica(FILE *stream);
+static char *leer_archivo_completo(const char *ruta, size_t *tam_out);
+static char *normalizar_palabra(const char *inicio, size_t len);
 
 static void imprimir_menu(void) {
     printf("\n==================================================\n");
@@ -41,6 +45,95 @@ static void imprimir_menu(void) {
 static void limpiar_entrada(void) {
     int c;
     while ((c = getchar()) != '\n' && c != EOF) { }
+}
+
+static char *leer_linea_dinamica(FILE *stream) {
+    size_t cap = 128;
+    size_t len = 0;
+    char *buf = malloc(cap);
+    if (!buf) {
+        return NULL;
+    }
+
+    int ch;
+    while ((ch = fgetc(stream)) != EOF && ch != '\n') {
+        if (ch == '\r') {
+            continue;
+        }
+        if (len + 1 >= cap) {
+            size_t nueva_cap = cap * 2;
+            char *tmp = realloc(buf, nueva_cap);
+            if (!tmp) {
+                free(buf);
+                return NULL;
+            }
+            buf = tmp;
+            cap = nueva_cap;
+        }
+        buf[len++] = (char)ch;
+    }
+    buf[len] = '\0';
+    return buf;
+}
+
+static char *leer_archivo_completo(const char *ruta, size_t *tam_out) {
+    FILE *f = fopen(ruta, "rb");
+    if (!f) {
+        return NULL;
+    }
+
+    size_t cap = 4096;
+    size_t len = 0;
+    char *buf = malloc(cap);
+    if (!buf) {
+        fclose(f);
+        return NULL;
+    }
+
+    size_t nread;
+    while ((nread = fread(buf + len, 1, cap - len - 1, f)) > 0) {
+        len += nread;
+        if (cap - len - 1 == 0) {
+            size_t nueva_cap = cap * 2;
+            char *tmp = realloc(buf, nueva_cap);
+            if (!tmp) {
+                free(buf);
+                fclose(f);
+                return NULL;
+            }
+            buf = tmp;
+            cap = nueva_cap;
+        }
+    }
+
+    fclose(f);
+    buf[len] = '\0';
+    *tam_out = len;
+    return buf;
+}
+
+static char *normalizar_palabra(const char *inicio, size_t len) {
+    size_t i = 0;
+    size_t j = len;
+
+    while (i < j && ispunct((unsigned char)inicio[i])) {
+        i++;
+    }
+    while (j > i && ispunct((unsigned char)inicio[j - 1])) {
+        j--;
+    }
+
+    size_t out_len = j - i;
+    char *res = malloc(out_len + 1);
+    if (!res) {
+        return NULL;
+    }
+
+    for (size_t k = 0; k < out_len; k++) {
+        res[k] = (char)tolower((unsigned char)inicio[i + k]);
+    }
+    res[out_len] = '\0';
+    return res;
 }
 
 /* ---------- main: bucle del menu ---------- */
@@ -78,17 +171,83 @@ int main(void) {
     return 0;
 }
 
+/* ---------- Operacion 1: espacios en blanco en una cadena ---------- */
+static void op1_espacios(void) {
+    printf("Ingresa la cadena: ");
+    char *cadena = leer_linea_dinamica(stdin);
+    if (!cadena) {
+        printf("Sin memoria.\n");
+        return;
+    }
+
+    size_t n = strlen(cadena);
+    size_t espacios = 0;
+
+    #pragma omp parallel for reduction(+:espacios)
+    for (size_t i = 0; i < n; i++) {
+        if (isspace((unsigned char)cadena[i])) {
+            espacios++;
+        }
+    }
+
+    printf("Numero de espacios en blanco: %zu\n", espacios);
+    free(cadena);
+}
+
+/* ---------- Operacion 2: palabras y caracteres en un archivo ---------- */
+static void op2_palabras_caracteres(void) {
+    printf("Ingresa la ruta del archivo de texto: ");
+    char *ruta = leer_linea_dinamica(stdin);
+    if (!ruta) {
+        printf("Sin memoria.\n");
+        return;
+    }
+
+    size_t n = 0;
+    char *contenido = leer_archivo_completo(ruta, &n);
+    if (!contenido) {
+        printf("Error: no se pudo abrir el archivo '%s'.\n", ruta);
+        free(ruta);
+        return;
+    }
+
+    size_t palabras = 0;
+    size_t caracteres = 0;
+
+    #pragma omp parallel for reduction(+:palabras, caracteres)
+    for (size_t i = 0; i < n; i++) {
+        unsigned char c = (unsigned char)contenido[i];
+
+        /* En UTF-8 los bytes de continuacion son 10xxxxxx (0x80..0xBF) */
+        if ((c & 0xC0) != 0x80) {
+            caracteres++;
+        }
+
+        int es_caracter_palabra = !isspace(c);
+        int anterior_es_espacio = (i == 0) || isspace((unsigned char)contenido[i - 1]);
+        if (es_caracter_palabra && anterior_es_espacio) {
+            palabras++;
+        }
+    }
+
+    printf("Numero de palabras: %zu\n", palabras);
+    printf("Numero de caracteres: %zu\n", caracteres);
+
+    free(contenido);
+    free(ruta);
+}
+
 /* ---------- Operacion 8: raices reales ---------- */
 static void op8_raices_cuadraticas(void) {
     double a, b, c, D, r, x1 = 0, x2 = 0;
     double b2 = 0.0, ac4 = 0.0;
 
-    printf("Coeficiente a: "); 
+    printf("Coeficiente a: ");
     scanf("%lf", &a);
 
-    printf("Coeficiente b: "); 
+    printf("Coeficiente b: ");
     scanf("%lf", &b);
-    printf("Coeficiente c: "); 
+    printf("Coeficiente c: ");
     scanf("%lf", &c);
     limpiar_entrada();
 
@@ -130,6 +289,129 @@ static void op8_raices_cuadraticas(void) {
 
     printf("Raiz 1 = %.4f\n", x1);
     printf("Raiz 2 = %.4f\n", x2);
+}
+
+/* ---------- Operacion 9: apariciones de una palabra en un texto ---------- */
+static void op9_contar_palabra(void) {
+    int modo;
+    printf("Como quieres ingresar el texto?\n");
+    printf("[1] Escribirlo por teclado\n");
+    printf("[2] Leerlo desde un archivo\n");
+    printf("Opcion: ");
+
+    if (scanf("%d", &modo) != 1) {
+        printf("Entrada invalida.\n");
+        limpiar_entrada();
+        return;
+    }
+    limpiar_entrada();
+
+    char *texto = NULL;
+    size_t len_texto = 0;
+
+    if (modo == 1) {
+        printf("Ingresa el texto: ");
+        texto = leer_linea_dinamica(stdin);
+        if (!texto) {
+            printf("Sin memoria.\n");
+            return;
+        }
+        len_texto = strlen(texto);
+    } else if (modo == 2) {
+        printf("Ingresa la ruta del archivo: ");
+        char *ruta = leer_linea_dinamica(stdin);
+        if (!ruta) {
+            printf("Sin memoria.\n");
+            return;
+        }
+        texto = leer_archivo_completo(ruta, &len_texto);
+        if (!texto) {
+            printf("Error: no se pudo abrir el archivo '%s'.\n", ruta);
+            free(ruta);
+            return;
+        }
+        free(ruta);
+    } else {
+        printf("Opcion no valida.\n");
+        return;
+    }
+
+    printf("Ingresa la palabra a buscar: ");
+    char *palabra_raw = leer_linea_dinamica(stdin);
+    if (!palabra_raw) {
+        free(texto);
+        printf("Sin memoria.\n");
+        return;
+    }
+
+    char *objetivo = normalizar_palabra(palabra_raw, strlen(palabra_raw));
+    if (!objetivo || objetivo[0] == '\0') {
+        printf("La palabra '%s' aparece 0 veces.\n", palabra_raw);
+        free(objetivo);
+        free(palabra_raw);
+        free(texto);
+        return;
+    }
+
+    /* Extraer tokens separados por espacios en blanco */
+    size_t cap = 64;
+    size_t num_palabras = 0;
+    char **palabras = malloc(cap * sizeof *palabras);
+    if (!palabras) {
+        free(objetivo);
+        free(palabra_raw);
+        free(texto);
+        printf("Sin memoria.\n");
+        return;
+    }
+
+    size_t i = 0;
+    while (i < len_texto) {
+        while (i < len_texto && isspace((unsigned char)texto[i])) {
+            i++;
+        }
+        if (i >= len_texto) {
+            break;
+        }
+        size_t inicio = i;
+        while (i < len_texto && !isspace((unsigned char)texto[i])) {
+            i++;
+        }
+        char *limpia = normalizar_palabra(texto + inicio, i - inicio);
+        if (limpia && limpia[0] != '\0') {
+            if (num_palabras == cap) {
+                size_t nueva_cap = cap * 2;
+                char **tmp = realloc(palabras, nueva_cap * sizeof *palabras);
+                if (!tmp) {
+                    free(limpia);
+                    break;
+                }
+                palabras = tmp;
+                cap = nueva_cap;
+            }
+            palabras[num_palabras++] = limpia;
+        } else {
+            free(limpia);
+        }
+    }
+
+    size_t apariciones = 0;
+    #pragma omp parallel for reduction(+:apariciones)
+    for (size_t k = 0; k < num_palabras; k++) {
+        if (strcmp(palabras[k], objetivo) == 0) {
+            apariciones++;
+        }
+    }
+
+    printf("La palabra '%s' aparece %zu veces.\n", palabra_raw, apariciones);
+
+    for (size_t k = 0; k < num_palabras; k++) {
+        free(palabras[k]);
+    }
+    free(palabras);
+    free(objetivo);
+    free(palabra_raw);
+    free(texto);
 }
 
 /* ---------- Operacion 10: sumatoria de n enteros ---------- */
@@ -189,9 +471,9 @@ static void op10_sumatoria(void) {
 
     printf("arreglo: [");
 
-    #pragma omp parallel for 
-    for(int i = 0; i < n; i++){
-      printf("%d, ", v[i]);
+    #pragma omp parallel for
+    for (int i = 0; i < n; i++) {
+        printf("%d, ", v[i]);
     }
 
     printf("]\n");
@@ -207,11 +489,8 @@ static void op10_sumatoria(void) {
 }
 
 /* ---------- Stubs (aun no implementadas) ---------- */
-static void op1_espacios(void)            { printf("Operacion 1 aun no implementada.\n"); }
-static void op2_palabras_caracteres(void) { printf("Operacion 2 aun no implementada.\n"); }
 static void op3_sumar_matrices(void)      { printf("Operacion 3 aun no implementada.\n"); }
 static void op4_cadenas_iguales(void)     { printf("Operacion 4 aun no implementada.\n"); }
 static void op5_ordenar(void)             { printf("Operacion 5 aun no implementada.\n"); }
 static void op6_palabra_en_texto(void)    { printf("Operacion 6 aun no implementada.\n"); }
 static void op7_interseccion(void)        { printf("Operacion 7 aun no implementada.\n"); }
-static void op9_contar_palabra(void)      { printf("Operacion 9 aun no implementada.\n"); }
