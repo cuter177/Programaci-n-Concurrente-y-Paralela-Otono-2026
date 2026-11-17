@@ -237,6 +237,258 @@ static void op2_palabras_caracteres(void) {
     free(ruta);
 }
 
+/* ---------- Operacion 3: suma de dos matrices cuadradas de enteros ---------- */
+static void op3_sumar_matrices(void) {
+    int n, modo;
+
+    printf("Dimension n de las matrices cuadradas (n x n): ");
+    if (scanf("%d", &n) != 1 || n <= 0) {
+        printf("n debe ser un entero positivo.\n");
+        limpiar_entrada();
+        return;
+    }
+    limpiar_entrada();
+
+    size_t total = (size_t)n * (size_t)n;
+    int *A = malloc(total * sizeof *A);
+    int *B = malloc(total * sizeof *B);
+    long long *C = malloc(total * sizeof *C);
+    if (!A || !B || !C) {
+        printf("Sin memoria.\n");
+        free(A);
+        free(B);
+        free(C);
+        return;
+    }
+
+    printf("Como quieres las matrices?\n");
+    printf("[1] Escribirlas por teclado\n");
+    printf("[2] Generarlas aleatoriamente\n");
+    printf("Opcion: ");
+
+    if (scanf("%d", &modo) != 1) {
+        printf("Entrada invalida.\n");
+        limpiar_entrada();
+        free(A);
+        free(B);
+        free(C);
+        return;
+    }
+    limpiar_entrada();
+
+    if (modo == 1) {
+        printf("Ingresa los %zu elementos de la matriz A (por filas):\n", total);
+        for (size_t i = 0; i < total; i++) {
+            if (scanf("%d", &A[i]) != 1) {
+                printf("Entrada invalida.\n");
+                limpiar_entrada();
+                free(A);
+                free(B);
+                free(C);
+                return;
+            }
+        }
+        printf("Ingresa los %zu elementos de la matriz B (por filas):\n", total);
+        for (size_t i = 0; i < total; i++) {
+            if (scanf("%d", &B[i]) != 1) {
+                printf("Entrada invalida.\n");
+                limpiar_entrada();
+                free(A);
+                free(B);
+                free(C);
+                return;
+            }
+        }
+        limpiar_entrada();
+    } else if (modo == 2) {
+        srand((unsigned)time(NULL));
+        for (size_t i = 0; i < total; i++) {
+            A[i] = rand() % 201 - 100;   /* entre -100 y 100 */
+            B[i] = rand() % 201 - 100;
+        }
+        printf("Se generaron dos matrices de %d x %d con enteros entre -100 y 100.\n", n, n);
+    } else {
+        printf("Opcion no valida.\n");
+        free(A);
+        free(B);
+        free(C);
+        return;
+    }
+
+    /* Cada elemento de C es independiente -> bucles anidados en paralelo */
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            size_t idx = (size_t)i * (size_t)n + (size_t)j;
+            C[idx] = (long long)A[idx] + (long long)B[idx];
+        }
+    }
+
+    /* Impresion solo si n es menor o igual 10 ya que sino se inunda */
+    if (n <= 10) {
+        printf("\nMatriz A:\n");
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                printf("%6d ", A[(size_t)i * n + j]);
+            }
+            printf("\n");
+        }
+        printf("\nMatriz B:\n");
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                printf("%6d ", B[(size_t)i * n + j]);
+            }
+            printf("\n");
+        }
+        printf("\nMatriz A + B:\n");
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                printf("%6lld ", C[(size_t)i * n + j]);
+            }
+            printf("\n");
+        }
+    } else {
+        printf("Suma calculada (matrices de %d x %d; no se imprimen por su tamano).\n", n, n);
+    }
+
+    free(A);
+    free(B);
+    free(C);
+}
+
+/* ---------- Operacion 4: revisar si dos cadenas son iguales ---------- */
+static void op4_cadenas_iguales(void) {
+    printf("Ingresa la primera cadena: ");
+    char *s1 = leer_linea_dinamica(stdin);
+    if (!s1) {
+        printf("Sin memoria.\n");
+        return;
+    }
+
+    printf("Ingresa la segunda cadena: ");
+    char *s2 = leer_linea_dinamica(stdin);
+    if (!s2) {
+        printf("Sin memoria.\n");
+        free(s1);
+        return;
+    }
+
+    size_t n1 = strlen(s1);
+    size_t n2 = strlen(s2);
+
+    if (n1 != n2) {
+        printf("Las cadenas NO son iguales (longitudes distintas: %zu y %zu).\n", n1, n2);
+    } else {
+        size_t diferencias = 0;
+
+        /* Cada posicion se compara de forma independiente -> reduccion */
+        #pragma omp parallel for reduction(+:diferencias)
+        for (size_t i = 0; i < n1; i++) {
+            if (s1[i] != s2[i]) {
+                diferencias++;
+            }
+        }
+
+        if (diferencias == 0) {
+            printf("Las cadenas son iguales.\n");
+        } else {
+            printf("Las cadenas NO son iguales (difieren en %zu posicion(es)).\n", diferencias);
+        }
+    }
+
+    free(s1);
+    free(s2);
+}
+
+/* ---------- Operacion 5: ordenar un conjunto de enteros ---------- */
+static void op5_ordenar(void) {
+    int n, modo;
+
+    printf("Cuantos numeros enteros? ");
+    if (scanf("%d", &n) != 1 || n <= 0) {
+        printf("n debe ser un entero positivo.\n");
+        limpiar_entrada();
+        return;
+    }
+    limpiar_entrada();
+
+    int *v = malloc((size_t)n * sizeof *v);
+    if (v == NULL) {
+        printf("Sin memoria.\n");
+        return;
+    }
+
+    printf("Como quieres los %d numeros?\n", n);
+    printf("[1] Escribirlos por teclado\n");
+    printf("[2] Generarlos aleatoriamente\n");
+    printf("Opcion: ");
+
+    if (scanf("%d", &modo) != 1) {
+        printf("Entrada invalida.\n");
+        free(v);
+        limpiar_entrada();
+        return;
+    }
+    limpiar_entrada();
+
+    if (modo == 1) {
+        printf("Ingresa %d enteros separados por espacio:\n", n);
+        for (int i = 0; i < n; i++) {
+            if (scanf("%d", &v[i]) != 1) {
+                printf("Entrada invalida.\n");
+                free(v);
+                limpiar_entrada();
+                return;
+            }
+        }
+        limpiar_entrada();
+    } else if (modo == 2) {
+        srand((unsigned)time(NULL));
+        for (int i = 0; i < n; i++) {
+            v[i] = rand() % 201 - 100;   /* entre -100 y 100 */
+        }
+        printf("Se generaron %d enteros aleatorios entre -100 y 100.\n", n);
+    } else {
+        printf("Opcion no valida.\n");
+        free(v);
+        return;
+    }
+
+    /* Impresion secuencial */
+    if (n <= 50) {
+        printf("Original: [");
+        for (int i = 0; i < n; i++) {
+            printf("%d%s", v[i], (i < n - 1) ? ", " : "");
+        }
+        printf("]\n");
+    }
+
+    /* Ordenamiento par-impar en cada fase los pares (i, i+1) son disjuntos -> se comparan en paralelo */
+    for (int fase = 0; fase < n; fase++) {
+        int inicio = fase % 2;
+        #pragma omp parallel for
+        for (int i = inicio; i < n - 1; i += 2) {
+            if (v[i] > v[i + 1]) {
+                int tmp = v[i];
+                v[i] = v[i + 1];
+                v[i + 1] = tmp;
+            }
+        }
+    }
+
+    if (n <= 50) {
+        printf("Ordenado: [");
+        for (int i = 0; i < n; i++) {
+            printf("%d%s", v[i], (i < n - 1) ? ", " : "");
+        }
+        printf("]\n");
+    } else {
+        printf("Arreglo de %d elementos ordenado (no se imprime por su tamano).\n", n);
+    }
+
+    free(v);
+}
+
 /* ---------- Operacion 8: raices reales ---------- */
 static void op8_raices_cuadraticas(void) {
     double a, b, c, D, r, x1 = 0, x2 = 0;
@@ -489,8 +741,5 @@ static void op10_sumatoria(void) {
 }
 
 /* ---------- Stubs (aun no implementadas) ---------- */
-static void op3_sumar_matrices(void)      { printf("Operacion 3 aun no implementada.\n"); }
-static void op4_cadenas_iguales(void)     { printf("Operacion 4 aun no implementada.\n"); }
-static void op5_ordenar(void)             { printf("Operacion 5 aun no implementada.\n"); }
 static void op6_palabra_en_texto(void)    { printf("Operacion 6 aun no implementada.\n"); }
 static void op7_interseccion(void)        { printf("Operacion 7 aun no implementada.\n"); }
