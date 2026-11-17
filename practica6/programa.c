@@ -489,6 +489,284 @@ static void op5_ordenar(void) {
     free(v);
 }
 
+/* ---------- Operacion 6: revisar si una palabra se encuentra en un texto ---------- */
+static void op6_palabra_en_texto(void) {
+    int modo;
+    printf("Como quieres ingresar el texto?\n");
+    printf("[1] Escribirlo por teclado\n");
+    printf("[2] Leerlo desde un archivo\n");
+    printf("Opcion: ");
+
+    if (scanf("%d", &modo) != 1) {
+        printf("Entrada invalida.\n");
+        limpiar_entrada();
+        return;
+    }
+    limpiar_entrada();
+
+    char *texto = NULL;
+    size_t len_texto = 0;
+
+    if (modo == 1) {
+        printf("Ingresa el texto: ");
+        texto = leer_linea_dinamica(stdin);
+        if (!texto) {
+            printf("Sin memoria.\n");
+            return;
+        }
+        len_texto = strlen(texto);
+    } else if (modo == 2) {
+        printf("Ingresa la ruta del archivo: ");
+        char *ruta = leer_linea_dinamica(stdin);
+        if (!ruta) {
+            printf("Sin memoria.\n");
+            return;
+        }
+        texto = leer_archivo_completo(ruta, &len_texto);
+        if (!texto) {
+            printf("Error: no se pudo abrir el archivo '%s'.\n", ruta);
+            free(ruta);
+            return;
+        }
+        free(ruta);
+    } else {
+        printf("Opcion no valida.\n");
+        return;
+    }
+
+    printf("Ingresa la palabra a buscar: ");
+    char *palabra_raw = leer_linea_dinamica(stdin);
+    if (!palabra_raw) {
+        free(texto);
+        printf("Sin memoria.\n");
+        return;
+    }
+
+    char *objetivo = normalizar_palabra(palabra_raw, strlen(palabra_raw));
+    if (!objetivo || objetivo[0] == '\0') {
+        printf("La palabra '%s' NO se encuentra en el texto.\n", palabra_raw);
+        free(objetivo);
+        free(palabra_raw);
+        free(texto);
+        return;
+    }
+
+    /* Extraer tokens separados por espacios en blanco */
+    size_t cap = 64;
+    size_t num_palabras = 0;
+    char **palabras = malloc(cap * sizeof *palabras);
+    if (!palabras) {
+        free(objetivo);
+        free(palabra_raw);
+        free(texto);
+        printf("Sin memoria.\n");
+        return;
+    }
+
+    size_t i = 0;
+    while (i < len_texto) {
+        while (i < len_texto && isspace((unsigned char)texto[i])) {
+            i++;
+        }
+        if (i >= len_texto) {
+            break;
+        }
+        size_t inicio = i;
+        while (i < len_texto && !isspace((unsigned char)texto[i])) {
+            i++;
+        }
+        char *limpia = normalizar_palabra(texto + inicio, i - inicio);
+        if (limpia && limpia[0] != '\0') {
+            if (num_palabras == cap) {
+                size_t nueva_cap = cap * 2;
+                char **tmp = realloc(palabras, nueva_cap * sizeof *palabras);
+                if (!tmp) {
+                    free(limpia);
+                    break;
+                }
+                palabras = tmp;
+                cap = nueva_cap;
+            }
+            palabras[num_palabras++] = limpia;
+        } else {
+            free(limpia);
+        }
+    }
+
+    /* Busqueda en paralelo de la existencia de la palabra */
+    int encontrada = 0;
+    #pragma omp parallel for reduction(+:encontrada)
+    for (size_t k = 0; k < num_palabras; k++) {
+        if (strcmp(palabras[k], objetivo) == 0) {
+            encontrada = 1;
+        }
+    }
+
+    if (encontrada > 0) {
+        printf("La palabra '%s' SI se encuentra en el texto.\n", palabra_raw);
+    } else {
+        printf("La palabra '%s' NO se encuentra en el texto.\n", palabra_raw);
+    }
+
+    for (size_t k = 0; k < num_palabras; k++) {
+        free(palabras[k]);
+    }
+    free(palabras);
+    free(objetivo);
+    free(palabra_raw);
+    free(texto);
+}
+
+/* ---------- Operacion 7: interseccion de dos conjuntos de enteros ---------- */
+static void op7_interseccion(void) {
+    int n, m, modo;
+
+    printf("Cuantos elementos tiene el conjunto A? ");
+    if (scanf("%d", &n) != 1 || n <= 0) {
+        printf("n debe ser un entero positivo.\n");
+        limpiar_entrada();
+        return;
+    }
+
+    printf("Cuantos elementos tiene el conjunto B? ");
+    if (scanf("%d", &m) != 1 || m <= 0) {
+        printf("m debe ser un entero positivo.\n");
+        limpiar_entrada();
+        return;
+    }
+    limpiar_entrada();
+
+    int *A = malloc((size_t)n * sizeof *A);
+    int *B = malloc((size_t)m * sizeof *B);
+    if (!A || !B) {
+        printf("Sin memoria.\n");
+        free(A);
+        free(B);
+        return;
+    }
+
+    printf("Como quieres los conjuntos?\n");
+    printf("[1] Escribirlos por teclado\n");
+    printf("[2] Generarlos aleatoriamente\n");
+    printf("Opcion: ");
+
+    if (scanf("%d", &modo) != 1) {
+        printf("Entrada invalida.\n");
+        free(A);
+        free(B);
+        limpiar_entrada();
+        return;
+    }
+    limpiar_entrada();
+
+    if (modo == 1) {
+        printf("Ingresa los %d enteros del conjunto A:\n", n);
+        for (int i = 0; i < n; i++) {
+            if (scanf("%d", &A[i]) != 1) {
+                printf("Entrada invalida.\n");
+                free(A);
+                free(B);
+                limpiar_entrada();
+                return;
+            }
+        }
+        printf("Ingresa los %d enteros del conjunto B:\n", m);
+        for (int j = 0; j < m; j++) {
+            if (scanf("%d", &B[j]) != 1) {
+                printf("Entrada invalida.\n");
+                free(A);
+                free(B);
+                limpiar_entrada();
+                return;
+            }
+        }
+        limpiar_entrada();
+    } else if (modo == 2) {
+        srand((unsigned)time(NULL));
+        for (int i = 0; i < n; i++) {
+            A[i] = rand() % 50 - 25;
+        }
+        for (int j = 0; j < m; j++) {
+            B[j] = rand() % 50 - 25;
+        }
+        printf("Se generaron conjuntos aleatorios para A y B.\n");
+    } else {
+        printf("Opcion no valida.\n");
+        free(A);
+        free(B);
+        return;
+    }
+
+    int max_inter = (n < m) ? n : m;
+    int *interseccion = malloc((size_t)max_inter * sizeof *interseccion);
+    int count = 0;
+
+    if (!interseccion) {
+        printf("Sin memoria.\n");
+        free(A);
+        free(B);
+        return;
+    }
+
+    /* Calculo de la interseccion en paralelo usando hilos y seccion critica */
+    #pragma omp parallel
+    {
+        int *local_inter = malloc((size_t)max_inter * sizeof *local_inter);
+        int local_count = 0;
+
+        #pragma omp for
+        for (int i = 0; i < n; i++) {
+            int val = A[i];
+            int ya_registrado = 0;
+            for (int l = 0; l < local_count; l++) {
+                if (local_inter[l] == val) {
+                    ya_registrado = 1;
+                    break;
+                }
+            }
+            if (!ya_registrado) {
+                int en_b = 0;
+                for (int j = 0; j < m; j++) {
+                    if (B[j] == val) {
+                        en_b = 1;
+                        break;
+                    }
+                }
+                if (en_b) {
+                    local_inter[local_count++] = val;
+                }
+            }
+        }
+
+        #pragma omp critical
+        {
+            for (int l = 0; l < local_count; l++) {
+                int duplicado = 0;
+                for (int c_idx = 0; c_idx < count; c_idx++) {
+                    if (interseccion[c_idx] == local_inter[l]) {
+                        duplicado = 1;
+                        break;
+                    }
+                }
+                if (!duplicado) {
+                    interseccion[count++] = local_inter[l];
+                }
+            }
+        }
+        free(local_inter);
+    }
+
+    printf("Interseccion de A y B (%d elementos):\n[", count);
+    for (int i = 0; i < count; i++) {
+        printf("%d%s", interseccion[i], (i < count - 1) ? ", " : "");
+    }
+    printf("]\n");
+
+    free(A);
+    free(B);
+    free(interseccion);
+}
+
 /* ---------- Operacion 8: raices reales ---------- */
 static void op8_raices_cuadraticas(void) {
     double a, b, c, D, r, x1 = 0, x2 = 0;
@@ -739,7 +1017,3 @@ static void op10_sumatoria(void) {
     printf("Sumatoria = %lld\n", suma);
     free(v);
 }
-
-/* ---------- Stubs (aun no implementadas) ---------- */
-static void op6_palabra_en_texto(void)    { printf("Operacion 6 aun no implementada.\n"); }
-static void op7_interseccion(void)        { printf("Operacion 7 aun no implementada.\n"); }
