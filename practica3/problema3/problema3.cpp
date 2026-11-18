@@ -56,6 +56,13 @@ void interseccion(const char **A, int nA, const char **B, int nB,
     *total = k;
 }
 
+void imprimirArreglo(const char **X, int n) {
+    for (int i = 0; i < n; i++)
+        printf("%s%s", X[i], (i + 1 < n) ? ", " : "\n");
+    if (n == 0)
+        printf("\n");
+}
+
 int main(void) {
     const char *A[] = {"mango", "pera", "uva", "kiwi", "manzana", "fresa", "melon"};
     const char *B[] = {"uva", "kiwi", "pera", "sandia", "melon", "naranja"};
@@ -67,8 +74,13 @@ int main(void) {
 
     interseccion(A, nA, B, nB, C, &total);
 
-    for (int i = 0; i < total; i++)
-        printf("%s\n", C[i]);
+    printf("Conjunto A: ");
+    imprimirArreglo(A, nA);
+    printf("Conjunto B: ");
+    imprimirArreglo(B, nB);
+    printf("Interseccion entre los conjuntos: ");
+    imprimirArreglo(C, total);
+
     free(C);
     return 0;
 }
