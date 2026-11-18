@@ -1,0 +1,4 @@
+OpenMP es una API para programación paralela en C, C++ y Fortran.
+Con OpenMP podemos repartir el trabajo entre varios hilos.
+Este texto sirve para probar las operaciones de la práctica.
+OpenMP, openmp y (OpenMP) cuentan como la misma palabra.
