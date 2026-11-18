@@ -112,6 +112,38 @@ static char *leer_archivo_completo(const char *ruta, size_t *tam_out) {
     return buf;
 }
 
+/* ---------- Impresion operacion 3: imprimir A, B y A + B ---------- */
+static void imprimir_suma_matrices(const int *A, const int *B, const long long *C, int n) {
+    if (n > 10) {
+        printf("Suma calculada (matrices de %d x %d; no se imprimen por su tamano).\n", n, n);
+        return;
+    }
+
+    printf("\nMatriz A:\n");
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            printf("%6d ", A[(size_t)i * n + j]);
+        }
+        printf("\n");
+    }
+
+    printf("\nMatriz B:\n");
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            printf("%6d ", B[(size_t)i * n + j]);
+        }
+        printf("\n");
+    }
+
+    printf("\nMatriz A + B:\n");
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            printf("%6lld ", C[(size_t)i * n + j]);
+        }
+        printf("\n");
+    }
+}
+
 static char *normalizar_palabra(const char *inicio, size_t len) {
     size_t i = 0;
     size_t j = len;
@@ -239,7 +271,7 @@ static void op2_palabras_caracteres(void) {
 
 /* ---------- Operacion 3: suma de dos matrices cuadradas de enteros ---------- */
 static void op3_sumar_matrices(void) {
-    int n, modo;
+    int n;
 
     printf("Dimension n de las matrices cuadradas (n x n): ");
     if (scanf("%d", &n) != 1 || n <= 0) {
@@ -261,59 +293,30 @@ static void op3_sumar_matrices(void) {
         return;
     }
 
-    printf("Como quieres las matrices?\n");
-    printf("[1] Escribirlas por teclado\n");
-    printf("[2] Generarlas aleatoriamente\n");
-    printf("Opcion: ");
+    printf("Ingresa los %zu elementos de la matriz A (por filas):\n", total);
+    for (size_t i = 0; i < total; i++) {
+        if (scanf("%d", &A[i]) != 1) {
+            printf("Entrada invalida.\n");
+            limpiar_entrada();
+            free(A);
+            free(B);
+            free(C);
+            return;
+        }
+    }
 
-    if (scanf("%d", &modo) != 1) {
-        printf("Entrada invalida.\n");
-        limpiar_entrada();
-        free(A);
-        free(B);
-        free(C);
-        return;
+    printf("Ingresa los %zu elementos de la matriz B (por filas):\n", total);
+    for (size_t i = 0; i < total; i++) {
+        if (scanf("%d", &B[i]) != 1) {
+            printf("Entrada invalida.\n");
+            limpiar_entrada();
+            free(A);
+            free(B);
+            free(C);
+            return;
+        }
     }
     limpiar_entrada();
-
-    if (modo == 1) {
-        printf("Ingresa los %zu elementos de la matriz A (por filas):\n", total);
-        for (size_t i = 0; i < total; i++) {
-            if (scanf("%d", &A[i]) != 1) {
-                printf("Entrada invalida.\n");
-                limpiar_entrada();
-                free(A);
-                free(B);
-                free(C);
-                return;
-            }
-        }
-        printf("Ingresa los %zu elementos de la matriz B (por filas):\n", total);
-        for (size_t i = 0; i < total; i++) {
-            if (scanf("%d", &B[i]) != 1) {
-                printf("Entrada invalida.\n");
-                limpiar_entrada();
-                free(A);
-                free(B);
-                free(C);
-                return;
-            }
-        }
-        limpiar_entrada();
-    } else if (modo == 2) {
-        srand((unsigned)time(NULL));
-        for (size_t i = 0; i < total; i++) {
-            A[i] = rand() % 201 - 100;   /* entre -100 y 100 */
-            B[i] = rand() % 201 - 100;
-        }
-        printf("Se generaron dos matrices de %d x %d con enteros entre -100 y 100.\n", n, n);
-    } else {
-        printf("Opcion no valida.\n");
-        free(A);
-        free(B);
-        free(C);
-        return;
-    }
 
     /* Cada elemento de C es independiente -> bucles anidados en paralelo */
     #pragma omp parallel for collapse(2)
@@ -324,32 +327,7 @@ static void op3_sumar_matrices(void) {
         }
     }
 
-    /* Impresion solo si n es menor o igual 10 ya que sino se inunda */
-    if (n <= 10) {
-        printf("\nMatriz A:\n");
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) {
-                printf("%6d ", A[(size_t)i * n + j]);
-            }
-            printf("\n");
-        }
-        printf("\nMatriz B:\n");
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) {
-                printf("%6d ", B[(size_t)i * n + j]);
-            }
-            printf("\n");
-        }
-        printf("\nMatriz A + B:\n");
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) {
-                printf("%6lld ", C[(size_t)i * n + j]);
-            }
-            printf("\n");
-        }
-    } else {
-        printf("Suma calculada (matrices de %d x %d; no se imprimen por su tamano).\n", n, n);
-    }
+    imprimir_suma_matrices(A, B, C, n);
 
     free(A);
     free(B);
@@ -402,7 +380,7 @@ static void op4_cadenas_iguales(void) {
 
 /* ---------- Operacion 5: ordenar un conjunto de enteros ---------- */
 static void op5_ordenar(void) {
-    int n, modo;
+    int n;
 
     printf("Cuantos numeros enteros? ");
     if (scanf("%d", &n) != 1 || n <= 0) {
@@ -418,43 +396,18 @@ static void op5_ordenar(void) {
         return;
     }
 
-    printf("Como quieres los %d numeros?\n", n);
-    printf("[1] Escribirlos por teclado\n");
-    printf("[2] Generarlos aleatoriamente\n");
-    printf("Opcion: ");
-
-    if (scanf("%d", &modo) != 1) {
-        printf("Entrada invalida.\n");
-        free(v);
-        limpiar_entrada();
-        return;
+    printf("Ingresa %d enteros separados por espacio:\n", n);
+    for (int i = 0; i < n; i++) {
+        if (scanf("%d", &v[i]) != 1) {
+            printf("Entrada invalida.\n");
+            free(v);
+            limpiar_entrada();
+            return;
+        }
     }
     limpiar_entrada();
 
-    if (modo == 1) {
-        printf("Ingresa %d enteros separados por espacio:\n", n);
-        for (int i = 0; i < n; i++) {
-            if (scanf("%d", &v[i]) != 1) {
-                printf("Entrada invalida.\n");
-                free(v);
-                limpiar_entrada();
-                return;
-            }
-        }
-        limpiar_entrada();
-    } else if (modo == 2) {
-        srand((unsigned)time(NULL));
-        for (int i = 0; i < n; i++) {
-            v[i] = rand() % 201 - 100;   /* entre -100 y 100 */
-        }
-        printf("Se generaron %d enteros aleatorios entre -100 y 100.\n", n);
-    } else {
-        printf("Opcion no valida.\n");
-        free(v);
-        return;
-    }
-
-    /* Impresion secuencial */
+    /* Impresion secuencial del arreglo original */
     if (n <= 50) {
         printf("Original: [");
         for (int i = 0; i < n; i++) {
@@ -463,7 +416,8 @@ static void op5_ordenar(void) {
         printf("]\n");
     }
 
-    /* Ordenamiento par-impar en cada fase los pares (i, i+1) son disjuntos -> se comparan en paralelo */
+    /* Ordenamiento par-impar (odd-even transposition sort):
+       en cada fase los pares (i, i+1) son disjuntos -> se comparan en paralelo */
     for (int fase = 0; fase < n; fase++) {
         int inicio = fase % 2;
         #pragma omp parallel for
