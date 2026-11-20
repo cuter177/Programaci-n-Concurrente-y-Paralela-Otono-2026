@@ -18,7 +18,7 @@ public class Sala {
         this.asientos = new Asiento[filas][columnas];
         for (int f = 0; f < filas; ++f) {
             for (int c = 0; c < columnas; ++c) {
-                asientos[f][c] = new Asiento(f * columnas + c + 1);
+                asientos[f][c] = new Asiento();
             }
         }
     }
@@ -78,6 +78,10 @@ public class Sala {
         } finally {
             mtx.unlock();
         }
+    }
+
+    public int totalAsientos() {
+        return filas * columnas;
     }
 
     public int asientosOcupados() {

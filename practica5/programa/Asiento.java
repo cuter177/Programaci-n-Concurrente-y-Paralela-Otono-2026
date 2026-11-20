@@ -1,16 +1,10 @@
 import java.util.Optional;
 
 public class Asiento {
-    private final int numero;
     private Optional<Persona> ocupante;
 
-    public Asiento(int numero) {
-        this.numero = numero;
+    public Asiento() {
         this.ocupante = Optional.empty();
-    }
-
-    public int getNumero() {
-        return numero;
     }
 
     public boolean isOcupado() {

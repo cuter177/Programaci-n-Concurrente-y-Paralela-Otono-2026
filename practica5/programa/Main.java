@@ -63,7 +63,7 @@ public class Main {
         }
 
         System.out.println("\n=== Estado de la sala ("
-                + sala.asientosOcupados() + "/80) ===");
+                + sala.asientosOcupados() + "/" + sala.totalAsientos() + ") ===");
         sala.mostrarSala();
     }
 }
