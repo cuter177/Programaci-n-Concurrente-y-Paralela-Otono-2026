@@ -1,13 +1,16 @@
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * La sala NO tiene un cerrojo global. La matriz es final y se construye
+ * completa antes de lanzar los hilos; cada Asiento se protege a sí mismo.
+ * Así, reservar (0,0) y reservar (2,4) son operaciones concurrentes reales.
+ */
 public class Sala {
     private final int filas;
     private final int columnas;
     private final Asiento[][] asientos;
-    private final ReentrantLock mtx = new ReentrantLock();
 
     public Sala(int filas, int columnas) {
         if (filas <= 0 || columnas <= 0) {
@@ -27,98 +30,80 @@ public class Sala {
         return fila >= 0 && fila < filas && columna >= 0 && columna < columnas;
     }
 
+    // Cada método solo toca UN asiento; no hay sección crítica compartida.
     public boolean asignarAsiento(int fila, int columna, Persona persona) {
-        mtx.lock();
-        try {
-            if (!dentroDeRango(fila, columna)) {
-                return false;
-            }
-            return asientos[fila][columna].ocupar(persona);
-        } finally {
-            mtx.unlock();
+        if (!dentroDeRango(fila, columna)) {
+            return false;
         }
+        return asientos[fila][columna].ocupar(persona);
     }
 
     public boolean liberarAsiento(int fila, int columna) {
-        mtx.lock();
-        try {
-            if (!dentroDeRango(fila, columna)) {
-                return false;
-            }
-            return asientos[fila][columna].liberar();
-        } finally {
-            mtx.unlock();
+        if (!dentroDeRango(fila, columna)) {
+            return false;
         }
+        return asientos[fila][columna].liberar();
     }
 
     public Optional<Persona> buscarPorAsiento(int fila, int columna) {
-        mtx.lock();
-        try {
-            if (!dentroDeRango(fila, columna)) {
-                return Optional.empty();
-            }
-            return asientos[fila][columna].getOcupante();
-        } finally {
-            mtx.unlock();
+        if (!dentroDeRango(fila, columna)) {
+            return Optional.empty();
         }
+        return asientos[fila][columna].getOcupante();
     }
 
+    // Recorrido de solo lectura: cada casilla se lee con su propio cerrojo.
     public List<Ubicacion> buscarPorNombre(String nombre) {
-        mtx.lock();
-        try {
-            List<Ubicacion> encontrados = new ArrayList<>();
-            for (int f = 0; f < filas; ++f) {
-                for (int c = 0; c < columnas; ++c) {
-                    if (asientos[f][c].perteneceA(nombre)) {
-                        encontrados.add(new Ubicacion(f, c));
-                    }
+        List<Ubicacion> encontrados = new ArrayList<>();
+        for (int f = 0; f < filas; ++f) {
+            for (int c = 0; c < columnas; ++c) {
+                if (asientos[f][c].perteneceA(nombre)) {
+                    encontrados.add(new Ubicacion(f, c));
                 }
             }
-            return encontrados;
-        } finally {
-            mtx.unlock();
         }
+        return encontrados;
     }
 
+    public int asientosOcupados() {
+        int ocupados = 0;
+        for (int f = 0; f < filas; ++f) {
+            for (int c = 0; c < columnas; ++c) {
+                if (asientos[f][c].isOcupado()) {
+                    ++ocupados;
+                }
+            }
+        }
+        return ocupados;
+    }
+
+    // filas y columnas nunca cambian: no necesitan cerrojo
     public int totalAsientos() {
         return filas * columnas;
     }
 
-    public int asientosOcupados() {
-        mtx.lock();
-        try {
-            int ocupados = 0;
-            for (int f = 0; f < filas; ++f) {
-                for (int c = 0; c < columnas; ++c) {
-                    if (asientos[f][c].isOcupado()) {
-                        ++ocupados;
-                    }
-                }
-            }
-            return ocupados;
-        } finally {
-            mtx.unlock();
-        }
-    }
-
     public void mostrarSala() {
-        mtx.lock();
-        try {
-            System.out.print("\n     ");
+        // 1) copiar cada casilla (cada lectura ya está sincronizada en Asiento)
+        boolean[][] copia = new boolean[filas][columnas];
+        for (int f = 0; f < filas; ++f) {
             for (int c = 0; c < columnas; ++c) {
-                System.out.printf("%3d", c);
+                copia[f][c] = asientos[f][c].isOcupado();
             }
-            System.out.println();
-            for (int f = 0; f < filas; ++f) {
-                System.out.print("F" + f + "  ");
-                for (int c = 0; c < columnas; ++c) {
-                    System.out.printf("%3s", asientos[f][c].isOcupado() ? "[X]" : "[ ]");
-                }
-                System.out.println();
-            }
-            System.out.println();
-        } finally {
-            mtx.unlock();
         }
+
+        // 2) imprimir sin cerrojos (la E/S por consola es lenta)
+        System.out.print("\n     ");
+        for (int c = 0; c < columnas; ++c) {
+            System.out.printf("%3d", c);
+        }
+        System.out.println();
+        for (int f = 0; f < filas; ++f) {
+            System.out.print("F" + f + "  ");
+            for (int c = 0; c < columnas; ++c) {
+                System.out.printf("%3s", copia[f][c] ? "[X]" : "[ ]");
+            }
+            System.out.println();
+        }
+        System.out.println();
     }
 }
