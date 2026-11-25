@@ -1,0 +1,3 @@
+# Archivos compilados (se regeneran con javac -d out)
+servidor/out/
+cliente/out/
