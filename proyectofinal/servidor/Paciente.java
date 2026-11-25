@@ -115,10 +115,27 @@ public class Paciente {
         return false;
     }
 
+    /** Línea para pacientes.txt (sin id; se asigna al cargar). */
+    public synchronized String lineaArchivo() {
+        return nombre + "; " + Utilidades.formatearFecha(fechaNacimiento)
+                + "; " + formatoArchivo(recibidas) + "; " + formatoArchivo(proximas);
+    }
+
     @Override
     public synchronized String toString() {
         return id + "; " + nombre + "; " + Utilidades.formatearFecha(fechaNacimiento)
                 + "; " + formatoLista(recibidas) + "; " + formatoLista(proximas);
+    }
+
+    private static String formatoArchivo(List<Vacuna> lista) {
+        StringBuilder texto = new StringBuilder();
+        for (int i = 0; i < lista.size(); ++i) {
+            if (i > 0) {
+                texto.append(", ");
+            }
+            texto.append(lista.get(i).toString());
+        }
+        return texto.toString();
     }
 
     private static String formatoLista(List<Vacuna> lista) {

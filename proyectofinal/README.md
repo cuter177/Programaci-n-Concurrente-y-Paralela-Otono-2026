@@ -8,7 +8,8 @@ anteriores: cerrojo por paciente, búsqueda por referencia y consultas subdividi
 ## Estado del proyecto
 
 - [x] **Fase 1 — Modelo Java:** `Vacuna`, `Utilidades`, `Paciente` y pruebas.
-- [ ] Fase 2 — Clínica y persistencia.
+- [x] **Fase 2 — Clínica y persistencia:** `Clinica`, `Repositorio` y las 14 operaciones.
+
 - [ ] Fase 3 — Subdivisión concurrente de consultas.
 - [ ] Fase 4 — Servidor, protocolo y cliente TCP.
 - [ ] Fase 5 — Pruebas multi-cliente.
@@ -22,8 +23,13 @@ javac -d out ./*.java
 java -cp out PruebaModelo
 ```
 
-Salida esperada: `Todas las pruebas del modelo pasaron.`
+Salida esperada:
+```
+Todas las pruebas del modelo pasaron.
+Todas las pruebas de la clínica pasaron.
+```
 
 Las pruebas cubren: validación de fechas (incluye bisiestos con `ResolverStyle.STRICT`),
-nombres, normalización de vacunas, copias defensivas de las listas y 200 hilos agregando
-vacunas al mismo paciente sin perder ninguna.
+nombres, normalización de vacunas, copias defensivas, las 14 operaciones, persistencia
+(reabrir el archivo), 80 altas concurrentes, 200 vacunas en el mismo paciente y 40
+pacientes distintos vacunados a la vez.
