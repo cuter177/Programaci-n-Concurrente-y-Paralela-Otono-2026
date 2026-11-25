@@ -7,7 +7,7 @@ import java.util.Optional;
 public class Asiento {
     private Optional<Persona> ocupante = Optional.empty();
 
-    public synchronized boolean isOcupado() {
+    public boolean isOcupado() {
         return ocupante.isPresent();
     }
 
@@ -28,11 +28,11 @@ public class Asiento {
         return true;
     }
 
-    public synchronized boolean perteneceA(String nombre) {
+    public boolean perteneceA(String nombre) {
         return ocupante.isPresent() && ocupante.get().getNombre().equals(nombre);
     }
 
-    public synchronized Optional<Persona> getOcupante() {
+    public Optional<Persona> getOcupante() {
         return ocupante;
     }
 }
