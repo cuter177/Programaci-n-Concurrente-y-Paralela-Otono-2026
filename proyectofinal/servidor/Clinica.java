@@ -6,6 +6,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
@@ -23,7 +27,15 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 public class Clinica {
     private static final int TAM_PAGINA = 5;
+    private static final int NUM_PARTES = 5;   // la lista se divide en 5 trozos
 
+    // Hilos daemon: si el proceso termina, no impiden que la JVM se cierre.
+    // El servidor igualmente llama a cerrar() al apagarse.
+    private final ExecutorService pool = Executors.newFixedThreadPool(NUM_PARTES, tarea -> {
+        Thread hilo = new Thread(tarea, "consulta-" + NUM_PARTES);
+        hilo.setDaemon(true);
+        return hilo;
+    });
     private final List<Paciente> pacientes = new ArrayList<>();  // ordenado por id
     private final AtomicInteger siguienteId = new AtomicInteger(1);
     private final AtomicReference<LocalDate> fechaActual = new AtomicReference<>();
@@ -190,14 +202,17 @@ public class Clinica {
     // ---------- 8. Nombres en orden alfabético ----------
 
     public List<String> nombresAlfabetico() {
-        List<String> nombres = new ArrayList<>();
-        leer.lock();
-        try {
-            for (Paciente p : pacientes) {
-                nombres.add(p.getNombre());
+        List<Paciente> fuente = instantanea();
+        List<List<String>> partes = enCincoPartes(fuente, (inicio, fin) -> {
+            List<String> locales = new ArrayList<>();
+            for (int i = inicio; i < fin; ++i) {
+                locales.add(fuente.get(i).getNombre());
             }
-        } finally {
-            leer.unlock();
+            return locales;
+        });
+        List<String> nombres = new ArrayList<>();
+        for (List<String> parte : partes) {
+            nombres.addAll(parte);
         }
         nombres.sort(Comparator.comparing(Utilidades::claveOrden));
         return nombres;
@@ -209,15 +224,19 @@ public class Clinica {
         if (pagina < 0) {
             return List.of();
         }
-        List<String> fila = new ArrayList<>();
-        leer.lock();
-        try {
-            int inicio = pagina * TAM_PAGINA;
-            for (int i = inicio; i < Math.min(inicio + TAM_PAGINA, pacientes.size()); ++i) {
-                fila.add(pacientes.get(i).toString());
+        List<Paciente> fuente = instantanea();
+        int desde = pagina * TAM_PAGINA;
+        int hasta = Math.min(desde + TAM_PAGINA, fuente.size());
+        List<List<String>> partes = enCincoPartes(fuente, (inicio, fin) -> {
+            List<String> locales = new ArrayList<>();
+            for (int i = Math.max(inicio, desde); i < Math.min(fin, hasta); ++i) {
+                locales.add(fuente.get(i).toString());
             }
-        } finally {
-            leer.unlock();
+            return locales;
+        });
+        List<String> fila = new ArrayList<>();
+        for (List<String> parte : partes) {
+            fila.addAll(parte);
         }
         return fila;
     }
@@ -227,22 +246,33 @@ public class Clinica {
     private record ConEdad(Paciente paciente, int edad) {
     }
 
+    private record Vacunado(String nombre, String texto) {
+    }
+
     public List<String> rangoEdad(int min, int max) {
         if (min > max) {
             return List.of();
         }
         LocalDate hoy = getFechaActual();
-        List<ConEdad> seleccionados = new ArrayList<>();
-        leer.lock();
-        try {
-            for (Paciente p : pacientes) {
+        List<Paciente> fuente = instantanea();
+
+        // COBEGIN: 5 hilos, cada uno revisa su quinto parte de la lista.
+        List<List<ConEdad>> partes = enCincoPartes(fuente, (inicio, fin) -> {
+            List<ConEdad> locales = new ArrayList<>();
+            for (int i = inicio; i < fin; ++i) {
+                Paciente p = fuente.get(i);
                 int edad = Utilidades.calcularEdad(p.getFechaNacimiento(), hoy);
                 if (edad >= min && edad <= max) {
-                    seleccionados.add(new ConEdad(p, edad));
+                    locales.add(new ConEdad(p, edad));
                 }
             }
-        } finally {
-            leer.unlock();
+            return locales;
+        });
+
+        // COEND: se juntan los 5 resultados y se ordena una sola vez.
+        List<ConEdad> seleccionados = new ArrayList<>();
+        for (List<ConEdad> parte : partes) {
+            seleccionados.addAll(parte);
         }
         seleccionados.sort(Comparator.comparingInt(ConEdad::edad).reversed()
                 .thenComparing(c -> Utilidades.claveOrden(c.paciente().getNombre())));
@@ -257,25 +287,25 @@ public class Clinica {
 
     public List<String> conVacunaProxima7Dias(String nombreVacuna) {
         LocalDate hoy = getFechaActual();
-        List<String> nombres = new ArrayList<>();
-        leer.lock();
-        try {
-            for (Paciente p : pacientes) {
-                boolean aplica = false;
+        List<Paciente> fuente = instantanea();
+        List<List<String>> partes = enCincoPartes(fuente, (inicio, fin) -> {
+            List<String> locales = new ArrayList<>();
+            for (int i = inicio; i < fin; ++i) {
+                Paciente p = fuente.get(i);
                 for (Vacuna v : p.getVacunasProximas()) {
                     long dias = Utilidades.diasDiferencia(hoy, v.getFecha());
                     if (Utilidades.mismoNombre(v.getNombre(), nombreVacuna)
                             && dias >= 0 && dias <= 7) {
-                        aplica = true;
+                        locales.add(p.getNombre());
                         break;
                     }
                 }
-                if (aplica) {
-                    nombres.add(p.getNombre());
-                }
             }
-        } finally {
-            leer.unlock();
+            return locales;
+        });
+        List<String> nombres = new ArrayList<>();
+        for (List<String> parte : partes) {
+            nombres.addAll(parte);
         }
         nombres.sort(Comparator.comparing(Utilidades::claveOrden));
         return nombres;
@@ -285,53 +315,59 @@ public class Clinica {
 
     public int contarVacunasAplicadaSemana() {
         LocalDate hoy = getFechaActual();
-        int contador = 0;
-        leer.lock();
-        try {
-            for (Paciente p : pacientes) {
-                for (Vacuna v : p.getVacunasRecibidas()) {
+        List<Paciente> fuente = instantanea();
+        List<Integer> partes = enCincoPartes(fuente, (inicio, fin) -> {
+            int local = 0;
+            for (int i = inicio; i < fin; ++i) {
+                for (Vacuna v : fuente.get(i).getVacunasRecibidas()) {
                     long dias = Utilidades.diasDiferencia(v.getFecha(), hoy);
                     if (dias >= 0 && dias <= 7) {
-                        ++contador;
+                        ++local;
                     }
                 }
             }
-        } finally {
-            leer.unlock();
+            return local;
+        });
+        int total = 0;
+        for (Integer parte : partes) {
+            total += parte;
         }
-        return contador;
+        return total;
     }
 
     // ---------- 13. Vacuna próxima el siguiente mes ----------
 
     public int contarVacunasSiguienteMes(String nombreVacuna) {
         LocalDate siguiente = getFechaActual().withDayOfMonth(1).plusMonths(1);
-        int contador = 0;
-        leer.lock();
-        try {
-            for (Paciente p : pacientes) {
-                for (Vacuna v : p.getVacunasProximas()) {
+        List<Paciente> fuente = instantanea();
+        List<Integer> partes = enCincoPartes(fuente, (inicio, fin) -> {
+            int local = 0;
+            for (int i = inicio; i < fin; ++i) {
+                for (Vacuna v : fuente.get(i).getVacunasProximas()) {
                     if (Utilidades.mismoNombre(v.getNombre(), nombreVacuna)
                             && Utilidades.esMismoMes(v.getFecha(), siguiente)) {
-                        ++contador;
+                        ++local;
                     }
                 }
             }
-        } finally {
-            leer.unlock();
+            return local;
+        });
+        int total = 0;
+        for (Integer parte : partes) {
+            total += parte;
         }
-        return contador;
+        return total;
     }
 
     // ---------- 14. Pacientes vacunados en el mes actual ----------
 
     public List<String> vacunadosDelMes() {
         LocalDate hoy = getFechaActual();
-        List<String> nombres = new ArrayList<>();
-        StringBuilder texto = new StringBuilder();
-        leer.lock();
-        try {
-            for (Paciente p : pacientes) {
+        List<Paciente> fuente = instantanea();
+        List<List<Vacunado>> partes = enCincoPartes(fuente, (inicio, fin) -> {
+            List<Vacunado> locales = new ArrayList<>();
+            for (int i = inicio; i < fin; ++i) {
+                Paciente p = fuente.get(i);
                 List<Vacuna> recibidas = p.getVacunasRecibidas();
                 boolean aplica = false;
                 for (Vacuna v : recibidas) {
@@ -341,26 +377,30 @@ public class Clinica {
                     }
                 }
                 if (aplica) {
-                    nombres.add(p.getNombre());
-                }
-            }
-            nombres.sort(Comparator.comparing(Utilidades::claveOrden));
-            for (String nombre : nombres) {
-                Paciente p = porNombreSinLock(nombre);
-                int edad = Utilidades.calcularEdad(p.getFechaNacimiento(), hoy);
-                texto.append(nombre).append(" (").append(edad).append(" anios)\n");
-                for (Vacuna v : p.getVacunasRecibidas()) {
-                    if (Utilidades.esMismoMes(v.getFecha(), hoy)) {
-                        texto.append("  ").append(v.toString()).append("\n");
+                    StringBuilder texto = new StringBuilder();
+                    texto.append(p.getNombre()).append(" (")
+                            .append(Utilidades.calcularEdad(p.getFechaNacimiento(), hoy))
+                            .append(" anios)\n");
+                    for (Vacuna v : recibidas) {
+                        if (Utilidades.esMismoMes(v.getFecha(), hoy)) {
+                            texto.append("  ").append(v.toString()).append("\n");
+                        }
                     }
+                    locales.add(new Vacunado(p.getNombre(), texto.toString()));
                 }
             }
-        } finally {
-            leer.unlock();
+            return locales;
+        });
+        List<Vacunado> todos = new ArrayList<>();
+        for (List<Vacunado> parte : partes) {
+            todos.addAll(parte);
         }
-        // Se devuelve como una sola cadena para que el futuro protocolo TCP
-        // pueda enviarla en una respuesta (los saltos se convierten en ';').
-        return List.of(texto.toString());
+        todos.sort(Comparator.comparing(v -> Utilidades.claveOrden(v.nombre())));
+        List<String> resultado = new ArrayList<>();
+        for (Vacunado v : todos) {
+            resultado.add(v.texto());
+        }
+        return resultado;
     }
 
     // ---------- Búsquedas ----------
@@ -376,31 +416,39 @@ public class Clinica {
     }
 
     public int buscarPorNombre(String nombre) {
-        leer.lock();
-        try {
-            for (int i = 0; i < pacientes.size(); ++i) {
-                if (Utilidades.mismoNombre(pacientes.get(i).getNombre(), nombre)) {
-                    return i;
+        List<Paciente> fuente = instantanea();
+        List<Integer> partes = enCincoPartes(fuente, (inicio, fin) -> {
+            for (int i = inicio; i < fin; ++i) {
+                if (Utilidades.mismoNombre(fuente.get(i).getNombre(), nombre)) {
+                    return i;   // índice global, no local al trozo
                 }
             }
             return -1;
-        } finally {
-            leer.unlock();
-        }
+        });
+        return primerResultado(partes);
     }
 
     public int buscarPorFechaNacimiento(LocalDate fecha) {
-        leer.lock();
-        try {
-            for (int i = 0; i < pacientes.size(); ++i) {
-                if (pacientes.get(i).getFechaNacimiento().equals(fecha)) {
+        List<Paciente> fuente = instantanea();
+        List<Integer> partes = enCincoPartes(fuente, (inicio, fin) -> {
+            for (int i = inicio; i < fin; ++i) {
+                if (fuente.get(i).getFechaNacimiento().equals(fecha)) {
                     return i;
                 }
             }
             return -1;
-        } finally {
-            leer.unlock();
+        });
+        return primerResultado(partes);
+    }
+
+    /** Los trozos vuelven en orden, así que el primero que encontró es el menor índice. */
+    private static int primerResultado(List<Integer> partes) {
+        for (Integer indice : partes) {
+            if (indice >= 0) {
+                return indice;
+            }
         }
+        return -1;
     }
 
     public int idEnIndice(int indice) {
@@ -413,6 +461,11 @@ public class Clinica {
         } finally {
             leer.unlock();
         }
+    }
+
+    /** Se llama al apagar el servidor para liberar los hilos del pool. */
+    public void cerrar() {
+        pool.shutdown();
     }
 
     // ---------- Auxiliares ----------
@@ -434,6 +487,53 @@ public class Clinica {
         } finally {
             leer.unlock();
         }
+    }
+
+    /**
+     * Copia superficial de los pacientes bajo readLock. Luego se suelta el
+     * cerrojo: los Paciente siguen protegidos por sus propios synchronized.
+     */
+    private List<Paciente> instantanea() {
+        leer.lock();
+        try {
+            return new ArrayList<>(pacientes);
+        } finally {
+            leer.unlock();
+        }
+    }
+
+    /** Un trozo de trabajo: recibe el rango [inicio, fin) de la lista. */
+    @FunctionalInterface
+    private interface Parte<T> {
+        T ejecutar(int inicio, int fin);
+    }
+
+    /**
+     * Divide la lista en 5 trozos, lanza una tarea por trozo (COBEGIN) y espera
+     * a las 5 (COEND). Los resultados vuelven en orden de trozo.
+     * Cada tarea lee pacientes distintos y escribe solo en su resultado local:
+     * por las condiciones de Bernstein son independientes.
+     */
+    private <T> List<T> enCincoPartes(List<Paciente> fuente, Parte<T> tarea) {
+        int n = fuente.size();
+        List<Future<T>> futuros = new ArrayList<>(NUM_PARTES);
+        for (int i = 0; i < NUM_PARTES; ++i) {
+            int inicio = n * i / NUM_PARTES;
+            int fin = n * (i + 1) / NUM_PARTES;
+            futuros.add(pool.submit(() -> tarea.ejecutar(inicio, fin)));
+        }
+        List<T> resultados = new ArrayList<>(NUM_PARTES);
+        for (Future<T> futuro : futuros) {
+            try {
+                resultados.add(futuro.get());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Consulta interrumpida", e);
+            } catch (ExecutionException e) {
+                throw new IllegalStateException("Falló una parte de la consulta", e.getCause());
+            }
+        }
+        return resultados;
     }
 
     /** Debe llamarse con algún cerrojo de la estructura ya tomado. */
